@@ -2,50 +2,16 @@ import { create } from "zustand";
 
 export type EditMode = "photo" | "video";
 export type ActiveTool =
-  | "select"
-  | "crop"
-  | "brush"
-  | "eraser"
-  | "text"
-  | "shape"
-  | "gradient"
-  | "heal"
-  | "clone"
-  | "blur-tool"
-  | "sharpen-tool"
-  | "dodge"
-  | "burn"
-  | "smudge"
-  | "liquify"
-  | "lasso"
-  | "magic-wand"
-  | "eyedropper"
-  | "hand"
-  | "ruler"
-  | "pen";
+  | "select" | "crop" | "brush" | "eraser" | "text" | "shape" | "gradient"
+  | "heal" | "clone" | "blur-tool" | "sharpen-tool" | "dodge" | "burn"
+  | "smudge" | "liquify" | "lasso" | "magic-wand" | "eyedropper" | "hand"
+  | "ruler" | "pen";
 
 export type BlendMode =
-  | "normal"
-  | "multiply"
-  | "screen"
-  | "overlay"
-  | "darken"
-  | "lighten"
-  | "color-dodge"
-  | "color-burn"
-  | "hard-light"
-  | "soft-light"
-  | "difference"
-  | "exclusion"
-  | "hue"
-  | "saturation"
-  | "color"
-  | "luminosity"
-  | "dissolve"
-  | "linear-burn"
-  | "linear-dodge"
-  | "vivid-light"
-  | "pin-light";
+  | "normal" | "multiply" | "screen" | "overlay" | "darken" | "lighten"
+  | "color-dodge" | "color-burn" | "hard-light" | "soft-light" | "difference"
+  | "exclusion" | "hue" | "saturation" | "color" | "luminosity"
+  | "dissolve" | "linear-burn" | "linear-dodge" | "vivid-light" | "pin-light";
 
 export interface Layer {
   id: string;
@@ -116,76 +82,78 @@ export interface Adjustments {
   hue: number;
   dehaze: number;
   texture: number;
-  hslRed: number;
-  hslOrange: number;
-  hslYellow: number;
-  hslGreen: number;
-  hslAqua: number;
-  hslBlue: number;
-  hslPurple: number;
-  hslMagenta: number;
-  hslRedSat: number;
-  hslOrangeSat: number;
-  hslYellowSat: number;
-  hslGreenSat: number;
-  hslAquaSat: number;
-  hslBlueSat: number;
-  hslPurpleSat: number;
-  hslMagentaSat: number;
-  hslRedLum: number;
-  hslOrangeLum: number;
-  hslYellowLum: number;
-  hslGreenLum: number;
-  hslAquaLum: number;
-  hslBlueLum: number;
-  hslPurpleLum: number;
-  hslMagentaLum: number;
-  splitShadowH: number;
-  splitShadowS: number;
-  splitShadowL: number;
-  splitHighlightH: number;
-  splitHighlightS: number;
-  splitHighlightL: number;
+  hslRed: number; hslOrange: number; hslYellow: number; hslGreen: number;
+  hslAqua: number; hslBlue: number; hslPurple: number; hslMagenta: number;
+  hslRedSat: number; hslOrangeSat: number; hslYellowSat: number; hslGreenSat: number;
+  hslAquaSat: number; hslBlueSat: number; hslPurpleSat: number; hslMagentaSat: number;
+  hslRedLum: number; hslOrangeLum: number; hslYellowLum: number; hslGreenLum: number;
+  hslAquaLum: number; hslBlueLum: number; hslPurpleLum: number; hslMagentaLum: number;
+  splitShadowH: number; splitShadowS: number; splitShadowL: number;
+  splitHighlightH: number; splitHighlightS: number; splitHighlightL: number;
   splitBalance: number;
+  sharpenRadius: number; sharpenDetail: number; sharpenMasking: number;
+  noiseReductionDetail: number; colorNoiseReduction: number; colorNoiseDetail: number;
+  lensDistortion: number; lensVignette: number; defringe: number; chromaticAberration: number;
+  perspectiveV: number; perspectiveH: number; perspectiveScale: number;
 }
 
 export interface Crop {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  rotation: number;
-  flipH: boolean;
-  flipV: boolean;
-  aspectRatio: string;
+  x: number; y: number; width: number; height: number;
+  rotation: number; flipH: boolean; flipV: boolean; aspectRatio: string;
 }
 
-export interface CurvePoint {
-  x: number;
-  y: number;
+export interface CurvePoint { x: number; y: number; }
+
+export interface Snapshot {
+  id: string;
+  name: string;
+  timestamp: number;
+  thumbnail?: string;
+  adjustments: Adjustments;
+  layers: Layer[];
+  selectedFilter: string;
+}
+
+export interface Watermark {
+  id: string;
+  type: "text" | "image";
+  text?: string;
+  imageData?: string;
+  position: "top-left" | "top-center" | "top-right" | "center" | "bottom-left" | "bottom-center" | "bottom-right";
+  opacity: number;
+  fontSize: number;
+  fontFamily: string;
+  color: string;
+  rotation: number;
+  scale: number;
+  offsetX: number;
+  offsetY: number;
+  visible: boolean;
+}
+
+export type GradientType = "linear" | "radial" | "angular" | "reflected";
+export interface GradientOverlay {
+  id: string;
+  name: string;
+  type: GradientType;
+  angle: number;
+  centerX: number;
+  centerY: number;
+  radius: number;
+  feather: number;
+  opacity: number;
+  blendMode: BlendMode;
+  stops: { offset: number; color: string; opacity: number }[];
+  visible: boolean;
+  adjustments: Partial<Adjustments>;
 }
 
 export const DEFAULT_ADJUSTMENTS: Adjustments = {
-  brightness: 0,
-  contrast: 0,
-  saturation: 0,
-  exposure: 0,
-  highlights: 0,
-  shadows: 0,
-  whites: 0,
-  blacks: 0,
-  temperature: 0,
-  tint: 0,
-  vibrance: 0,
-  clarity: 0,
-  sharpness: 0,
-  noiseReduction: 0,
-  blur: 0,
-  vignette: 0,
-  grain: 0,
-  hue: 0,
-  dehaze: 0,
-  texture: 0,
+  brightness: 0, contrast: 0, saturation: 0, exposure: 0,
+  highlights: 0, shadows: 0, whites: 0, blacks: 0,
+  temperature: 0, tint: 0, vibrance: 0, clarity: 0,
+  sharpness: 0, noiseReduction: 0, blur: 0, vignette: 0,
+  grain: 0, hue: 0, dehaze: 0, texture: 0,
   hslRed: 0, hslOrange: 0, hslYellow: 0, hslGreen: 0,
   hslAqua: 0, hslBlue: 0, hslPurple: 0, hslMagenta: 0,
   hslRedSat: 0, hslOrangeSat: 0, hslYellowSat: 0, hslGreenSat: 0,
@@ -195,6 +163,10 @@ export const DEFAULT_ADJUSTMENTS: Adjustments = {
   splitShadowH: 0, splitShadowS: 0, splitShadowL: 0,
   splitHighlightH: 0, splitHighlightS: 0, splitHighlightL: 0,
   splitBalance: 0,
+  sharpenRadius: 0, sharpenDetail: 0, sharpenMasking: 0,
+  noiseReductionDetail: 0, colorNoiseReduction: 0, colorNoiseDetail: 0,
+  lensDistortion: 0, lensVignette: 0, defringe: 0, chromaticAberration: 0,
+  perspectiveV: 0, perspectiveH: 0, perspectiveScale: 100,
 };
 
 export interface HistoryEntry {
@@ -208,6 +180,20 @@ export interface Guide {
   id: string;
   orientation: "h" | "v";
   position: number;
+}
+
+export interface BrushSettings {
+  size: number;
+  opacity: number;
+  hardness: number;
+  flow: number;
+  spacing: number;
+  angle: number;
+  roundness: number;
+  color: string;
+  secondaryColor: string;
+  pressureSensitive: boolean;
+  blendMode: BlendMode;
 }
 
 export interface EditorState {
@@ -235,6 +221,12 @@ export interface EditorState {
   brushColor: string;
   brushHardness: number;
   brushFlow: number;
+  brushSpacing: number;
+  brushAngle: number;
+  brushRoundness: number;
+  brushSecondaryColor: string;
+  brushPressure: boolean;
+  brushBlendMode: BlendMode;
   canvasWidth: number;
   canvasHeight: number;
   resolution: string;
@@ -264,6 +256,15 @@ export interface EditorState {
   maskMode: boolean;
   textInput: string;
   textActive: boolean;
+  snapshots: Snapshot[];
+  watermarks: Watermark[];
+  watermarkEnabled: boolean;
+  gradientOverlays: GradientOverlay[];
+  activeGradientId: string | null;
+  showKeyboardShortcuts: boolean;
+  colorPickerColor: string;
+  compareSliderPosition: number;
+  selectionMask: string | null;
 
   setMode: (mode: EditMode) => void;
   setActiveTool: (tool: ActiveTool) => void;
@@ -292,6 +293,12 @@ export interface EditorState {
   setBrushOpacity: (opacity: number) => void;
   setBrushHardness: (h: number) => void;
   setBrushFlow: (f: number) => void;
+  setBrushSpacing: (v: number) => void;
+  setBrushAngle: (v: number) => void;
+  setBrushRoundness: (v: number) => void;
+  setBrushSecondaryColor: (v: string) => void;
+  setBrushPressure: (v: boolean) => void;
+  setBrushBlendMode: (v: BlendMode) => void;
   setResolution: (res: string) => void;
   setAiProcessing: (v: boolean) => void;
   setAiResult: (v: string | null) => void;
@@ -317,6 +324,22 @@ export interface EditorState {
   setMaskMode: (v: boolean) => void;
   setTextInput: (t: string) => void;
   setTextActive: (v: boolean) => void;
+  addSnapshot: (name: string) => void;
+  removeSnapshot: (id: string) => void;
+  restoreSnapshot: (id: string) => void;
+  renameSnapshot: (id: string, name: string) => void;
+  addWatermark: (wm: Watermark) => void;
+  removeWatermark: (id: string) => void;
+  updateWatermark: (id: string, updates: Partial<Watermark>) => void;
+  toggleWatermarkEnabled: () => void;
+  addGradientOverlay: (overlay: GradientOverlay) => void;
+  removeGradientOverlay: (id: string) => void;
+  updateGradientOverlay: (id: string, updates: Partial<GradientOverlay>) => void;
+  setActiveGradient: (id: string | null) => void;
+  toggleKeyboardShortcuts: () => void;
+  setColorPickerColor: (c: string) => void;
+  setCompareSliderPosition: (v: number) => void;
+  setSelectionMask: (v: string | null) => void;
 }
 
 export const useEditorStore = create<EditorState>((set, get) => ({
@@ -344,6 +367,12 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   brushColor: "#ffffff",
   brushHardness: 80,
   brushFlow: 100,
+  brushSpacing: 25,
+  brushAngle: 0,
+  brushRoundness: 100,
+  brushSecondaryColor: "#000000",
+  brushPressure: false,
+  brushBlendMode: "normal",
   canvasWidth: 3840,
   canvasHeight: 2160,
   resolution: "4K (3840x2160)",
@@ -378,6 +407,15 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   maskMode: false,
   textInput: "Your text here",
   textActive: false,
+  snapshots: [],
+  watermarks: [],
+  watermarkEnabled: false,
+  gradientOverlays: [],
+  activeGradientId: null,
+  showKeyboardShortcuts: false,
+  colorPickerColor: "#ffffff",
+  compareSliderPosition: 50,
+  selectionMask: null,
 
   setMode: (mode) => set({ mode }),
   setActiveTool: (activeTool) => set({ activeTool }),
@@ -395,9 +433,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   removeLayer: (id) => set((s) => ({ layers: s.layers.filter((l) => l.id !== id) })),
   setActiveLayer: (activeLayerId) => set({ activeLayerId }),
   updateLayer: (id, updates) =>
-    set((s) => ({
-      layers: s.layers.map((l) => (l.id === id ? { ...l, ...updates } : l)),
-    })),
+    set((s) => ({ layers: s.layers.map((l) => (l.id === id ? { ...l, ...updates } : l)) })),
   moveLayer: (id, direction) =>
     set((s) => {
       const idx = s.layers.findIndex((l) => l.id === id);
@@ -425,6 +461,12 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   setBrushOpacity: (brushOpacity) => set({ brushOpacity }),
   setBrushHardness: (brushHardness) => set({ brushHardness }),
   setBrushFlow: (brushFlow) => set({ brushFlow }),
+  setBrushSpacing: (brushSpacing) => set({ brushSpacing }),
+  setBrushAngle: (brushAngle) => set({ brushAngle }),
+  setBrushRoundness: (brushRoundness) => set({ brushRoundness }),
+  setBrushSecondaryColor: (brushSecondaryColor) => set({ brushSecondaryColor }),
+  setBrushPressure: (brushPressure) => set({ brushPressure }),
+  setBrushBlendMode: (brushBlendMode) => set({ brushBlendMode }),
   setResolution: (resolution) => set({ resolution }),
   setAiProcessing: (aiProcessing) => set({ aiProcessing }),
   setAiResult: (aiResult) => set({ aiResult }),
@@ -471,4 +513,64 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   setMaskMode: (maskMode) => set({ maskMode }),
   setTextInput: (textInput) => set({ textInput }),
   setTextActive: (textActive) => set({ textActive }),
+
+  addSnapshot: (name) =>
+    set((s) => {
+      const snap: Snapshot = {
+        id: Math.random().toString(36).slice(2, 10),
+        name,
+        timestamp: Date.now(),
+        adjustments: { ...s.adjustments },
+        layers: JSON.parse(JSON.stringify(s.layers)),
+        selectedFilter: s.selectedFilter,
+      };
+      return { snapshots: [...s.snapshots, snap] };
+    }),
+  removeSnapshot: (id) => set((s) => ({ snapshots: s.snapshots.filter((sn) => sn.id !== id) })),
+  restoreSnapshot: (id) =>
+    set((s) => {
+      const snap = s.snapshots.find((sn) => sn.id === id);
+      if (!snap) return s;
+      const entry: HistoryEntry = {
+        adjustments: { ...s.adjustments },
+        layers: JSON.parse(JSON.stringify(s.layers)),
+        description: `Before restore: ${snap.name}`,
+        timestamp: Date.now(),
+      };
+      const newHistory = [...s.history.slice(0, s.historyIndex + 1), entry];
+      return {
+        adjustments: { ...snap.adjustments },
+        layers: JSON.parse(JSON.stringify(snap.layers)),
+        selectedFilter: snap.selectedFilter,
+        history: newHistory,
+        historyIndex: newHistory.length - 1,
+      };
+    }),
+  renameSnapshot: (id, name) =>
+    set((s) => ({
+      snapshots: s.snapshots.map((sn) => (sn.id === id ? { ...sn, name } : sn)),
+    })),
+
+  addWatermark: (wm) => set((s) => ({ watermarks: [...s.watermarks, wm] })),
+  removeWatermark: (id) => set((s) => ({ watermarks: s.watermarks.filter((w) => w.id !== id) })),
+  updateWatermark: (id, updates) =>
+    set((s) => ({ watermarks: s.watermarks.map((w) => (w.id === id ? { ...w, ...updates } : w)) })),
+  toggleWatermarkEnabled: () => set((s) => ({ watermarkEnabled: !s.watermarkEnabled })),
+
+  addGradientOverlay: (overlay) => set((s) => ({ gradientOverlays: [...s.gradientOverlays, overlay], activeGradientId: overlay.id })),
+  removeGradientOverlay: (id) =>
+    set((s) => ({
+      gradientOverlays: s.gradientOverlays.filter((g) => g.id !== id),
+      activeGradientId: s.activeGradientId === id ? null : s.activeGradientId,
+    })),
+  updateGradientOverlay: (id, updates) =>
+    set((s) => ({
+      gradientOverlays: s.gradientOverlays.map((g) => (g.id === id ? { ...g, ...updates } : g)),
+    })),
+  setActiveGradient: (activeGradientId) => set({ activeGradientId }),
+
+  toggleKeyboardShortcuts: () => set((s) => ({ showKeyboardShortcuts: !s.showKeyboardShortcuts })),
+  setColorPickerColor: (colorPickerColor) => set({ colorPickerColor }),
+  setCompareSliderPosition: (compareSliderPosition) => set({ compareSliderPosition }),
+  setSelectionMask: (selectionMask) => set({ selectionMask }),
 }));

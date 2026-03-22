@@ -7,6 +7,11 @@ import AIPanel from "./panels/AIPanel";
 import CropPanel from "./panels/CropPanel";
 import ColorGradingPanel from "./panels/ColorGradingPanel";
 import DetailPanel from "./panels/DetailPanel";
+import HistoryPanel from "./panels/HistoryPanel";
+import BrushPanel from "./panels/BrushPanel";
+import GradientPanel from "./panels/GradientPanel";
+import WatermarkPanel from "./panels/WatermarkPanel";
+import SelectiveColorPanel from "./panels/SelectiveColorPanel";
 import { SlidersHorizontal } from "lucide-react";
 
 export default function PanelSidebar() {
@@ -21,6 +26,11 @@ export default function PanelSidebar() {
     "crop-panel": <CropPanel />,
     color: <ColorGradingPanel />,
     detail: <DetailPanel />,
+    history: <HistoryPanel />,
+    "brush-panel": <BrushPanel />,
+    "gradient-panel": <GradientPanel />,
+    watermark: <WatermarkPanel />,
+    selective: <SelectiveColorPanel />,
   };
 
   return (

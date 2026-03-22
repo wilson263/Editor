@@ -3,8 +3,8 @@ import {
   MousePointer2, Crop, Brush, Eraser, Type, Square, Blend,
   Wand2, Magnet, Scissors, CircleDot, Zap, Pipette, Hand,
   PenTool, Lasso, Sparkles, Sun, Moon, Wind, Layers,
-  Sliders, Palette, Scan, Settings2, Filter, SlidersHorizontal,
-  Image, Move
+  Sliders, Palette, Scan, SlidersHorizontal, Filter,
+  Image, Move, Clock, Droplets, Stamp, Keyboard, Layers2
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 
@@ -25,7 +25,7 @@ const TOOLS: { id: ActiveTool; icon: React.ReactNode; label: string; shortcut?: 
   { id: "smudge", icon: <Wind size={15} />, label: "Smudge", group: "paint" },
   { id: "blur-tool", icon: <CircleDot size={15} />, label: "Blur", group: "filter" },
   { id: "sharpen-tool", icon: <Zap size={15} />, label: "Sharpen", group: "filter" },
-  { id: "liquify", icon: <Wind size={15} />, label: "Liquify", group: "filter" },
+  { id: "liquify", icon: <Droplets size={15} />, label: "Liquify", group: "filter" },
   { id: "text", icon: <Type size={15} />, label: "Text", shortcut: "T", group: "shape" },
   { id: "shape", icon: <Square size={15} />, label: "Shape", shortcut: "U", group: "shape" },
   { id: "gradient", icon: <Blend size={15} />, label: "Gradient", shortcut: "G", group: "shape" },
@@ -33,14 +33,19 @@ const TOOLS: { id: ActiveTool; icon: React.ReactNode; label: string; shortcut?: 
 ];
 
 const PANELS = [
-  { id: "adjustments", icon: <Sliders size={15} />, label: "Adjust" },
-  { id: "filters", icon: <Filter size={15} />, label: "Filters" },
-  { id: "color", icon: <Palette size={15} />, label: "Color" },
-  { id: "crop-panel", icon: <Crop size={15} />, label: "Crop" },
-  { id: "layers", icon: <Layers size={15} />, label: "Layers" },
-  { id: "text-panel", icon: <Type size={15} />, label: "Text" },
-  { id: "detail", icon: <SlidersHorizontal size={15} />, label: "Detail" },
-  { id: "ai", icon: <Scan size={15} />, label: "AI" },
+  { id: "adjustments", icon: <Sliders size={14} />, label: "Adjust" },
+  { id: "filters", icon: <Filter size={14} />, label: "Filters" },
+  { id: "color", icon: <Palette size={14} />, label: "Color" },
+  { id: "detail", icon: <SlidersHorizontal size={14} />, label: "Detail" },
+  { id: "selective", icon: <Pipette size={14} />, label: "Select" },
+  { id: "gradient-panel", icon: <Blend size={14} />, label: "Gradient" },
+  { id: "layers", icon: <Layers size={14} />, label: "Layers" },
+  { id: "text-panel", icon: <Type size={14} />, label: "Text" },
+  { id: "crop-panel", icon: <Crop size={14} />, label: "Crop" },
+  { id: "brush-panel", icon: <Brush size={14} />, label: "Brush" },
+  { id: "watermark", icon: <Stamp size={14} />, label: "Mark" },
+  { id: "history", icon: <Clock size={14} />, label: "History" },
+  { id: "ai", icon: <Scan size={14} />, label: "AI" },
 ];
 
 const GROUP_LABELS: Record<string, string> = {
@@ -74,7 +79,7 @@ function ToolBtn({ tool, activeTool, onSelect }: { tool: typeof TOOLS[0]; active
 }
 
 export default function ToolSidebar() {
-  const { activeTool, setActiveTool, activePanel, setActivePanel, brushColor, brushSize } = useEditorStore();
+  const { activeTool, setActiveTool, activePanel, setActivePanel, brushColor, brushSize, toggleKeyboardShortcuts } = useEditorStore();
 
   const groups = Array.from(new Set(TOOLS.map((t) => t.group)));
 
@@ -88,12 +93,7 @@ export default function ToolSidebar() {
             {GROUP_LABELS[group]}
           </div>
           {TOOLS.filter((t) => t.group === group).map((t) => (
-            <ToolBtn
-              key={t.id}
-              tool={t}
-              activeTool={activeTool}
-              onSelect={() => setActiveTool(t.id)}
-            />
+            <ToolBtn key={t.id} tool={t} activeTool={activeTool} onSelect={() => setActiveTool(t.id)} />
           ))}
         </div>
       ))}
@@ -101,14 +101,15 @@ export default function ToolSidebar() {
       <div className="flex-1" />
 
       {/* Brush color preview */}
-      {(activeTool === "brush" || activeTool === "eraser") && (
+      {(activeTool === "brush" || activeTool === "eraser" || activeTool === "dodge" || activeTool === "burn") && (
         <div className="mb-1 w-full px-1.5">
           <div className="w-full h-px bg-[hsl(220_15%_15%)] my-1" />
           <div className="flex flex-col items-center gap-1">
             <div
-              className="w-7 h-7 rounded-full border-2 border-[hsl(220_15%_25%)] shadow-inner"
+              className="w-7 h-7 rounded-full border-2 border-[hsl(220_15%_25%)] shadow-inner cursor-pointer hover:scale-110 transition-all"
               style={{ background: brushColor }}
-              title={`Brush color: ${brushColor}`}
+              onClick={() => setActivePanel("brush-panel")}
+              title={`Brush: ${brushColor} · ${brushSize}px`}
             />
             <div className="text-[8px] text-gray-600 font-mono">{brushSize}px</div>
           </div>
@@ -137,6 +138,25 @@ export default function ToolSidebar() {
             </Tooltip>
           </TooltipProvider>
         ))}
+
+        {/* Keyboard shortcuts button */}
+        <div className="w-full h-px bg-[hsl(220_15%_15%)] my-1.5" />
+        <TooltipProvider delayDuration={400}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={toggleKeyboardShortcuts}
+                className="tool-btn w-9 mx-auto text-gray-600 hover:text-violet-400"
+              >
+                <Keyboard size={14} />
+                <span>Keys</span>
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="right" className="text-xs">
+              Keyboard Shortcuts (?)
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       </div>
     </div>
   );
