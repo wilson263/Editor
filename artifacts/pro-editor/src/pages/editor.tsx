@@ -118,8 +118,8 @@ export default function EditorPage() {
 
   return (
     <div
-      className="flex flex-col w-screen h-screen overflow-hidden bg-[hsl(222_18%_8%)]"
-      style={{ fontFamily: "Inter, system-ui, sans-serif" }}
+      className="flex flex-col w-screen h-screen overflow-hidden"
+      style={{ fontFamily: "Inter, system-ui, sans-serif", background: "#030008" }}
     >
       <TopBar />
 

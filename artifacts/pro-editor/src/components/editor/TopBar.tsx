@@ -1,13 +1,12 @@
 import { useEditorStore } from "@/lib/editorStore";
 import { RESOLUTIONS } from "@/lib/imageUtils";
 import {
-  Undo2, Redo2, Download, Upload, ZoomIn, ZoomOut, Monitor,
-  Film, Save, Share2, Settings, ChevronDown, Grid3X3, Ruler,
-  RotateCcw, Maximize2, SlidersHorizontal, History, Eye, Columns2,
-  Copy, FileImage, Clipboard, FolderOpen, Printer, Link2, Check,
-  LayoutTemplate, Sparkles
+  Undo2, Redo2, Download, ZoomIn, ZoomOut, Monitor,
+  Film, Share2, Settings, ChevronDown, Grid3X3, Ruler,
+  Columns2, Copy, FileImage, Clipboard, FolderOpen, Printer,
+  LayoutTemplate, Sparkles, Check
 } from "lucide-react";
-import { useRef, useState, useCallback } from "react";
+import { useRef, useState } from "react";
 
 export default function TopBar() {
   const {
@@ -31,10 +30,7 @@ export default function TopBar() {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = (ev) => {
-      const src = ev.target?.result as string;
-      setSourceImage(src);
-    };
+    reader.onload = (ev) => { setSourceImage(ev.target?.result as string); };
     reader.readAsDataURL(file);
     e.target.value = "";
   }
@@ -42,8 +38,7 @@ export default function TopBar() {
   function handleVideoUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    const url = URL.createObjectURL(file);
-    setSourceVideo(url);
+    setSourceVideo(URL.createObjectURL(file));
   }
 
   function handleExport() {
@@ -63,29 +58,21 @@ export default function TopBar() {
     canvas.toBlob(async (blob) => {
       if (!blob) return;
       try {
-        await navigator.clipboard.write([
-          new ClipboardItem({ "image/png": blob })
-        ]);
+        await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
         setCopySuccess(true);
         setTimeout(() => setCopySuccess(false), 2000);
-      } catch {
-        // Fallback: download
-        handleExport();
-      }
+      } catch { handleExport(); }
     });
   }
 
   async function handleBatchExport() {
     const canvas = document.getElementById("main-canvas") as HTMLCanvasElement;
     if (!canvas) return;
-
-    const formats: Array<{ format: string; mime: string; suffix: string }> = [
-      { format: "PNG", mime: "image/png", suffix: "png" },
-      { format: "JPEG", mime: "image/jpeg", suffix: "jpg" },
-      { format: "WebP", mime: "image/webp", suffix: "webp" },
-    ];
-
-    for (const f of formats) {
+    for (const f of [
+      { mime: "image/png", suffix: "png" },
+      { mime: "image/jpeg", suffix: "jpg" },
+      { mime: "image/webp", suffix: "webp" },
+    ]) {
       await new Promise<void>((resolve) => {
         const link = document.createElement("a");
         link.download = `proeditor-export.${f.suffix}`;
@@ -103,7 +90,7 @@ export default function TopBar() {
     const dataUrl = canvas.toDataURL("image/png");
     const w = window.open("", "_blank");
     if (!w) return;
-    w.document.write(`<html><body style="margin:0"><img src="${dataUrl}" style="max-width:100%;display:block" /><script>window.onload=()=>window.print()</script></body></html>`);
+    w.document.write(`<html><body style="margin:0"><img src="${dataUrl}" style="max-width:100%;display:block"/><script>window.onload=()=>window.print()</script></body></html>`);
     w.document.close();
     setShowExportMenu(false);
   }
@@ -114,9 +101,19 @@ export default function TopBar() {
 
   return (
     <div
-      className="h-11 bg-[hsl(222_18%_7%)] border-b border-[hsl(220_15%_13%)] flex items-center px-2 gap-1.5 shrink-0 z-50 shadow-lg"
+      className="shrink-0 z-50"
+      style={{
+        height: "46px",
+        background: "linear-gradient(180deg, #0a0818 0%, #060412 100%)",
+        borderBottom: "1px solid rgba(139,92,246,0.12)",
+        boxShadow: "0 1px 0 rgba(139,92,246,0.05), 0 4px 24px rgba(0,0,0,0.4)",
+        display: "flex",
+        alignItems: "center",
+        padding: "0 8px",
+        gap: "6px",
+        position: "relative",
+      }}
       onClick={(e) => {
-        // Close menus when clicking outside
         const target = e.target as Element;
         if (!target.closest("[data-menu]")) {
           setShowExportMenu(false);
@@ -125,160 +122,194 @@ export default function TopBar() {
         }
       }}
     >
+      {/* Subtle top accent line */}
+      <div style={{
+        position: "absolute", top: 0, left: 0, right: 0, height: "1px",
+        background: "linear-gradient(90deg, transparent, rgba(139,92,246,0.6), rgba(236,72,153,0.3), transparent)",
+        pointerEvents: "none",
+      }} />
+
       {/* Logo */}
-      <div className="flex items-center gap-2 min-w-[130px] mr-1 shrink-0">
-        <div className="w-6 h-6 rounded-md bg-gradient-to-br from-violet-500 via-purple-600 to-fuchsia-600 flex items-center justify-center shadow-lg">
-          <Sparkles size={12} className="text-white" />
+      <div className="flex items-center gap-2 shrink-0 mr-1" style={{ minWidth: "148px" }}>
+        <div style={{
+          width: "28px", height: "28px", borderRadius: "8px",
+          background: "linear-gradient(135deg, #8b5cf6, #ec4899)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          boxShadow: "0 2px 12px rgba(139,92,246,0.5), inset 0 1px 0 rgba(255,255,255,0.15)",
+        }}>
+          <Sparkles size={13} className="text-white" />
         </div>
-        <span className="font-bold text-white text-sm tracking-tight">ProEditor</span>
+        <span style={{
+          fontFamily: "'Space Grotesk', sans-serif",
+          fontWeight: 700, fontSize: "15px", letterSpacing: "-0.3px", color: "white",
+        }}>ProEditor</span>
         <span className="pro-badge">PRO</span>
       </div>
 
-      <div className="h-5 w-px bg-[hsl(220_15%_16%)]" />
+      {/* Divider */}
+      <div style={{ width: "1px", height: "20px", background: "rgba(139,92,246,0.15)", flexShrink: 0 }} />
 
       {/* Mode Switch */}
       <div className="mode-pill shrink-0">
-        <button
-          onClick={() => setMode("photo")}
-          className={`mode-pill-btn ${mode === "photo" ? "active" : ""}`}
-        >
-          <Monitor size={11} className="inline mr-1" />Photo
+        <button onClick={() => setMode("photo")} className={`mode-pill-btn ${mode === "photo" ? "active" : ""}`}>
+          <Monitor size={11} /> Photo
         </button>
-        <button
-          onClick={() => setMode("video")}
-          className={`mode-pill-btn ${mode === "video" ? "active" : ""}`}
-        >
-          <Film size={11} className="inline mr-1" />Video
+        <button onClick={() => setMode("video")} className={`mode-pill-btn ${mode === "video" ? "active" : ""}`}>
+          <Film size={11} /> Video
         </button>
       </div>
 
-      <div className="h-5 w-px bg-[hsl(220_15%_16%)]" />
+      <div style={{ width: "1px", height: "20px", background: "rgba(139,92,246,0.15)", flexShrink: 0 }} />
 
       {/* File Menu */}
       <div className="relative shrink-0" data-menu>
         <input ref={imageInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
         <input ref={videoInputRef} type="file" accept="video/*" className="hidden" onChange={handleVideoUpload} />
-
-        <button
-          onClick={() => setShowFileMenu(!showFileMenu)}
-          className="action-btn text-[11px]"
-        >
-          <FolderOpen size={11} /> Open
-          <ChevronDown size={9} className="ml-0.5" />
+        <button onClick={() => setShowFileMenu(!showFileMenu)} className="action-btn">
+          <FolderOpen size={11} /> Open <ChevronDown size={9} className="ml-0.5" />
         </button>
-
         {showFileMenu && (
-          <div className="absolute top-full left-0 mt-1 bg-[hsl(222_18%_12%)] border border-[hsl(220_15%_20%)] rounded-xl shadow-2xl z-50 py-1.5 w-44">
-            <button
-              onClick={() => { imageInputRef.current?.click(); setShowFileMenu(false); }}
-              className="w-full flex items-center gap-2.5 px-3 py-2 text-[11px] text-gray-300 hover:bg-[hsl(220_15%_16%)] hover:text-white transition-all"
+          <div style={{
+            position: "absolute", top: "calc(100% + 4px)", left: 0, zIndex: 50,
+            background: "#0d0b22", border: "1px solid rgba(139,92,246,0.2)",
+            borderRadius: "12px", boxShadow: "0 20px 60px rgba(0,0,0,0.8), 0 0 0 1px rgba(139,92,246,0.05)",
+            padding: "6px", minWidth: "160px",
+          }}>
+            <button onClick={() => { imageInputRef.current?.click(); setShowFileMenu(false); }} style={{
+              width: "100%", display: "flex", alignItems: "center", gap: "8px",
+              padding: "7px 10px", fontSize: "11px", color: "rgba(255,255,255,0.65)",
+              background: "none", border: "none", borderRadius: "7px", cursor: "pointer",
+              transition: "all 0.15s",
+            }}
+              onMouseOver={e => (e.currentTarget.style.background = "rgba(139,92,246,0.12)")}
+              onMouseOut={e => (e.currentTarget.style.background = "none")}
             >
-              <FileImage size={12} className="text-violet-400" /> Open Image
+              <FileImage size={12} style={{ color: "#a78bfa" }} /> Open Image
             </button>
-            <button
-              onClick={() => { videoInputRef.current?.click(); setShowFileMenu(false); }}
-              className="w-full flex items-center gap-2.5 px-3 py-2 text-[11px] text-gray-300 hover:bg-[hsl(220_15%_16%)] hover:text-white transition-all"
+            <button onClick={() => { videoInputRef.current?.click(); setShowFileMenu(false); }} style={{
+              width: "100%", display: "flex", alignItems: "center", gap: "8px",
+              padding: "7px 10px", fontSize: "11px", color: "rgba(255,255,255,0.65)",
+              background: "none", border: "none", borderRadius: "7px", cursor: "pointer",
+              transition: "all 0.15s",
+            }}
+              onMouseOver={e => (e.currentTarget.style.background = "rgba(139,92,246,0.12)")}
+              onMouseOut={e => (e.currentTarget.style.background = "none")}
             >
-              <Film size={12} className="text-violet-400" /> Open Video
+              <Film size={12} style={{ color: "#a78bfa" }} /> Open Video
             </button>
-            <div className="h-px bg-[hsl(220_15%_18%)] my-1" />
-            <button
-              onClick={() => { setActivePanel("collage"); setShowFileMenu(false); }}
-              className="w-full flex items-center gap-2.5 px-3 py-2 text-[11px] text-gray-300 hover:bg-[hsl(220_15%_16%)] hover:text-white transition-all"
+            <div style={{ height: "1px", background: "rgba(139,92,246,0.1)", margin: "4px 8px" }} />
+            <button onClick={() => { setActivePanel("collage"); setShowFileMenu(false); }} style={{
+              width: "100%", display: "flex", alignItems: "center", gap: "8px",
+              padding: "7px 10px", fontSize: "11px", color: "rgba(255,255,255,0.65)",
+              background: "none", border: "none", borderRadius: "7px", cursor: "pointer",
+              transition: "all 0.15s",
+            }}
+              onMouseOver={e => (e.currentTarget.style.background = "rgba(139,92,246,0.12)")}
+              onMouseOut={e => (e.currentTarget.style.background = "none")}
             >
-              <LayoutTemplate size={12} className="text-violet-400" /> New Collage
+              <LayoutTemplate size={12} style={{ color: "#a78bfa" }} /> New Collage
             </button>
           </div>
         )}
       </div>
 
-      <div className="h-5 w-px bg-[hsl(220_15%_16%)]" />
+      <div style={{ width: "1px", height: "20px", background: "rgba(139,92,246,0.15)", flexShrink: 0 }} />
 
-      {/* History */}
-      <div className="flex items-center shrink-0">
-        <button
-          onClick={undo}
-          disabled={!canUndo}
-          className={`p-1.5 rounded transition-all ${canUndo ? "text-gray-400 hover:text-white hover:bg-[hsl(220_15%_16%)]" : "text-gray-700 cursor-not-allowed"}`}
-          title="Undo (Ctrl+Z)"
-        >
-          <Undo2 size={14} />
-        </button>
-        <button
-          onClick={redo}
-          disabled={!canRedo}
-          className={`p-1.5 rounded transition-all ${canRedo ? "text-gray-400 hover:text-white hover:bg-[hsl(220_15%_16%)]" : "text-gray-700 cursor-not-allowed"}`}
-          title="Redo (Ctrl+Shift+Z)"
-        >
-          <Redo2 size={14} />
-        </button>
+      {/* History controls */}
+      <div className="flex items-center gap-0.5 shrink-0">
+        {[
+          { action: undo, enabled: canUndo, icon: <Undo2 size={14} />, title: "Undo (Ctrl+Z)" },
+          { action: redo, enabled: canRedo, icon: <Redo2 size={14} />, title: "Redo (Ctrl+Shift+Z)" },
+        ].map(({ action, enabled, icon, title }, i) => (
+          <button key={i} onClick={action} disabled={!enabled} title={title} style={{
+            width: "28px", height: "28px", borderRadius: "7px", border: "none",
+            background: "none", cursor: enabled ? "pointer" : "not-allowed",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            color: enabled ? "rgba(255,255,255,0.45)" : "rgba(255,255,255,0.12)",
+            transition: "all 0.15s",
+          }}
+            onMouseOver={e => enabled && (e.currentTarget.style.background = "rgba(255,255,255,0.06)", e.currentTarget.style.color = "rgba(255,255,255,0.85)")}
+            onMouseOut={e => (e.currentTarget.style.background = "none", e.currentTarget.style.color = enabled ? "rgba(255,255,255,0.45)" : "rgba(255,255,255,0.12)")}
+          >
+            {icon}
+          </button>
+        ))}
       </div>
 
-      <div className="h-5 w-px bg-[hsl(220_15%_16%)]" />
+      <div style={{ width: "1px", height: "20px", background: "rgba(139,92,246,0.15)", flexShrink: 0 }} />
 
       {/* View toggles */}
       <div className="flex items-center gap-0.5 shrink-0">
-        <button
-          onClick={toggleGrid}
-          className={`p-1.5 rounded transition-all ${showGrid ? "text-violet-400 bg-violet-900/20" : "text-gray-600 hover:text-gray-300"}`}
-          title="Toggle Grid (Ctrl+')"
-        >
-          <Grid3X3 size={13} />
-        </button>
-        <button
-          onClick={toggleRulers}
-          className={`p-1.5 rounded transition-all ${showRulers ? "text-violet-400 bg-violet-900/20" : "text-gray-600 hover:text-gray-300"}`}
-          title="Toggle Rulers (Ctrl+R)"
-        >
-          <Ruler size={13} />
-        </button>
-        <button
-          onClick={toggleBeforeAfter}
-          className={`p-1.5 rounded transition-all ${showBeforeAfter ? "text-violet-400 bg-violet-900/20" : "text-gray-600 hover:text-gray-300"}`}
-          title="Before/After Comparison"
-        >
-          <Columns2 size={13} />
-        </button>
-        <button
-          onClick={handleCopyToClipboard}
-          className={`p-1.5 rounded transition-all ${copySuccess ? "text-green-400" : "text-gray-600 hover:text-gray-300"}`}
-          title="Copy to Clipboard"
-        >
-          {copySuccess ? <Check size={13} /> : <Clipboard size={13} />}
-        </button>
+        {[
+          { active: showGrid, action: toggleGrid, icon: <Grid3X3 size={13} />, title: "Toggle Grid (Ctrl+')" },
+          { active: showRulers, action: toggleRulers, icon: <Ruler size={13} />, title: "Toggle Rulers (Ctrl+R)" },
+          { active: showBeforeAfter, action: toggleBeforeAfter, icon: <Columns2 size={13} />, title: "Before/After" },
+          { active: copySuccess, action: handleCopyToClipboard, icon: copySuccess ? <Check size={13} /> : <Clipboard size={13} />, title: "Copy to Clipboard" },
+        ].map(({ active, action, icon, title }, i) => (
+          <button key={i} onClick={action} title={title} style={{
+            width: "28px", height: "28px", borderRadius: "7px", border: "none",
+            background: active ? "rgba(139,92,246,0.18)" : "none",
+            cursor: "pointer",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            color: active ? "#c4b5fd" : "rgba(255,255,255,0.3)",
+            transition: "all 0.15s",
+            boxShadow: active ? "0 0 10px rgba(139,92,246,0.15)" : "none",
+          }}
+            onMouseOver={e => !active && (e.currentTarget.style.background = "rgba(255,255,255,0.05)", e.currentTarget.style.color = "rgba(255,255,255,0.65)")}
+            onMouseOut={e => !active && (e.currentTarget.style.background = "none", e.currentTarget.style.color = "rgba(255,255,255,0.3)")}
+          >
+            {icon}
+          </button>
+        ))}
       </div>
 
-      <div className="h-5 w-px bg-[hsl(220_15%_16%)]" />
+      <div style={{ width: "1px", height: "20px", background: "rgba(139,92,246,0.15)", flexShrink: 0 }} />
 
       {/* Zoom */}
       <div className="relative shrink-0" data-menu>
-        <div
-          className="flex items-center gap-1 bg-[hsl(222_18%_11%)] border border-[hsl(220_15%_18%)] rounded-md px-1.5 py-1 cursor-pointer hover:border-[hsl(220_15%_28%)]"
-          onClick={() => setShowZoomMenu(!showZoomMenu)}
-        >
-          <button onClick={(e) => { e.stopPropagation(); setZoom(zoom - 10); }} className="text-gray-400 hover:text-white p-0.5">
-            <ZoomOut size={12} />
+        <div onClick={() => setShowZoomMenu(!showZoomMenu)} style={{
+          display: "flex", alignItems: "center", gap: "4px",
+          background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)",
+          borderRadius: "7px", padding: "3px 6px", cursor: "pointer",
+          transition: "border-color 0.15s",
+        }}>
+          <button onClick={(e) => { e.stopPropagation(); setZoom(zoom - 10); }} style={{ background:"none",border:"none",cursor:"pointer",color:"rgba(255,255,255,0.4)",display:"flex",padding:"2px" }}>
+            <ZoomOut size={11} />
           </button>
-          <span className="text-xs text-white font-mono w-9 text-center select-none">{zoom}%</span>
-          <button onClick={(e) => { e.stopPropagation(); setZoom(zoom + 10); }} className="text-gray-400 hover:text-white p-0.5">
-            <ZoomIn size={12} />
+          <span style={{ fontSize: "11px", fontFamily: "monospace", color: "rgba(255,255,255,0.7)", width: "38px", textAlign: "center", userSelect: "none" }}>
+            {zoom}%
+          </span>
+          <button onClick={(e) => { e.stopPropagation(); setZoom(zoom + 10); }} style={{ background:"none",border:"none",cursor:"pointer",color:"rgba(255,255,255,0.4)",display:"flex",padding:"2px" }}>
+            <ZoomIn size={11} />
           </button>
         </div>
         {showZoomMenu && (
-          <div className="absolute top-full left-0 mt-1 bg-[hsl(222_18%_12%)] border border-[hsl(220_15%_20%)] rounded-lg shadow-xl z-50 py-1 min-w-[100px]">
+          <div style={{
+            position: "absolute", top: "calc(100% + 4px)", left: 0, zIndex: 50,
+            background: "#0d0b22", border: "1px solid rgba(139,92,246,0.2)",
+            borderRadius: "10px", boxShadow: "0 20px 60px rgba(0,0,0,0.8)",
+            padding: "4px", minWidth: "96px",
+          }}>
             {ZOOM_PRESETS.map((z) => (
-              <button
-                key={z}
-                onClick={() => { setZoom(z); setShowZoomMenu(false); }}
-                className={`w-full px-3 py-1.5 text-left text-xs transition-all hover:bg-[hsl(220_15%_16%)] ${zoom === z ? "text-violet-400" : "text-gray-300"}`}
+              <button key={z} onClick={() => { setZoom(z); setShowZoomMenu(false); }} style={{
+                width: "100%", padding: "5px 12px", fontSize: "11px", textAlign: "left",
+                background: "none", border: "none", borderRadius: "6px", cursor: "pointer",
+                color: zoom === z ? "#c4b5fd" : "rgba(255,255,255,0.55)", transition: "all 0.15s",
+              }}
+                onMouseOver={e => (e.currentTarget.style.background = "rgba(139,92,246,0.12)")}
+                onMouseOut={e => (e.currentTarget.style.background = "none")}
               >
                 {z}%
               </button>
             ))}
-            <div className="h-px bg-[hsl(220_15%_16%)] my-1" />
-            <button
-              onClick={() => { setZoom(100); setShowZoomMenu(false); }}
-              className="w-full px-3 py-1.5 text-left text-xs text-gray-300 hover:bg-[hsl(220_15%_16%)] transition-all"
+            <div style={{ height: "1px", background: "rgba(139,92,246,0.1)", margin: "4px 8px" }} />
+            <button onClick={() => { setZoom(100); setShowZoomMenu(false); }} style={{
+              width: "100%", padding: "5px 12px", fontSize: "11px", textAlign: "left",
+              background: "none", border: "none", borderRadius: "6px", cursor: "pointer",
+              color: "rgba(255,255,255,0.4)", transition: "all 0.15s",
+            }}
+              onMouseOver={e => (e.currentTarget.style.background = "rgba(139,92,246,0.12)")}
+              onMouseOut={e => (e.currentTarget.style.background = "none")}
             >
               100% — Actual Size
             </button>
@@ -291,103 +322,114 @@ export default function TopBar() {
         <select
           value={resolution}
           onChange={(e) => setResolution(e.target.value)}
-          className="bg-[hsl(222_18%_11%)] border border-[hsl(220_15%_18%)] text-[11px] text-gray-300 rounded-md px-2 py-1.5 outline-none hover:border-[hsl(220_15%_28%)] transition-all appearance-none pr-6 cursor-pointer"
+          style={{
+            background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)",
+            color: "rgba(255,255,255,0.55)", borderRadius: "7px",
+            fontSize: "11px", padding: "4px 22px 4px 8px", outline: "none",
+            appearance: "none", cursor: "pointer", transition: "border-color 0.15s",
+          }}
         >
-          {RESOLUTIONS.map((r) => (
-            <option key={r.label} value={r.label}>{r.label}</option>
-          ))}
+          {RESOLUTIONS.map((r) => <option key={r.label} value={r.label}>{r.label}</option>)}
         </select>
-        <ChevronDown size={10} className="absolute right-1.5 text-gray-500 pointer-events-none" />
+        <ChevronDown size={10} style={{ position: "absolute", right: "6px", color: "rgba(255,255,255,0.3)", pointerEvents: "none" }} />
       </div>
 
-      <div className="flex-1" />
+      {/* Spacer */}
+      <div style={{ flex: 1 }} />
 
-      {/* Right Actions */}
+      {/* Right actions */}
       <div className="flex items-center gap-1.5 shrink-0">
-        <button
-          onClick={() => setActivePanel("ai")}
-          className="flex items-center gap-1 px-2.5 py-1.5 bg-gradient-to-r from-violet-600/80 to-fuchsia-600/80 hover:from-violet-600 hover:to-fuchsia-600 text-white text-[11px] font-semibold rounded-lg transition-all shadow-lg"
-          title="AI Tools"
+        {/* AI Tools button — premium gradient */}
+        <button onClick={() => setActivePanel("ai")} style={{
+          display: "flex", alignItems: "center", gap: "6px",
+          padding: "5px 14px", borderRadius: "8px",
+          background: "linear-gradient(135deg, rgba(139,92,246,0.85), rgba(236,72,153,0.7))",
+          color: "white", border: "none", cursor: "pointer", fontSize: "11px", fontWeight: 700,
+          boxShadow: "0 2px 16px rgba(139,92,246,0.45), inset 0 1px 0 rgba(255,255,255,0.15)",
+          letterSpacing: "0.3px", transition: "all 0.2s",
+        }}
+          onMouseOver={e => { e.currentTarget.style.transform = "translateY(-1px)"; e.currentTarget.style.boxShadow = "0 4px 24px rgba(139,92,246,0.7), inset 0 1px 0 rgba(255,255,255,0.2)"; }}
+          onMouseOut={e => { e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = "0 2px 16px rgba(139,92,246,0.45), inset 0 1px 0 rgba(255,255,255,0.15)"; }}
         >
-          <Sparkles size={11} /> AI Tools
+          <Sparkles size={12} /> AI Tools
         </button>
 
-        <button className="p-1.5 rounded text-gray-500 hover:text-gray-300 hover:bg-[hsl(220_15%_14%)] transition-all" title="Settings">
-          <Settings size={14} />
-        </button>
-        <button className="p-1.5 rounded text-gray-500 hover:text-gray-300 hover:bg-[hsl(220_15%_14%)] transition-all" title="Share">
-          <Share2 size={14} />
-        </button>
-
-        <div className="relative" data-menu>
-          <button
-            onClick={() => setShowExportMenu(!showExportMenu)}
-            className="action-btn-primary action-btn"
+        {[
+          { icon: <Settings size={14} />, title: "Settings" },
+          { icon: <Share2 size={14} />, title: "Share" },
+        ].map(({ icon, title }, i) => (
+          <button key={i} title={title} style={{
+            width: "30px", height: "30px", borderRadius: "8px", border: "none",
+            background: "none", cursor: "pointer",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            color: "rgba(255,255,255,0.3)", transition: "all 0.15s",
+          }}
+            onMouseOver={e => (e.currentTarget.style.background = "rgba(255,255,255,0.06)", e.currentTarget.style.color = "rgba(255,255,255,0.7)")}
+            onMouseOut={e => (e.currentTarget.style.background = "none", e.currentTarget.style.color = "rgba(255,255,255,0.3)")}
           >
-            <Download size={12} /> Export
-            <ChevronDown size={10} className="ml-0.5" />
+            {icon}
           </button>
+        ))}
 
+        {/* Export */}
+        <div className="relative" data-menu>
+          <button onClick={() => setShowExportMenu(!showExportMenu)} className="action-btn action-btn-primary" style={{ gap: "5px" }}>
+            <Download size={12} /> Export <ChevronDown size={10} />
+          </button>
           {showExportMenu && (
-            <div className="absolute top-full right-0 mt-1 bg-[hsl(222_18%_12%)] border border-[hsl(220_15%_20%)] rounded-xl shadow-2xl z-50 p-4 w-60">
-              <div className="text-[10px] text-gray-500 uppercase tracking-widest mb-3">Export Format</div>
-              <div className="flex gap-1.5 mb-4">
+            <div style={{
+              position: "absolute", top: "calc(100% + 4px)", right: 0, zIndex: 50,
+              background: "#0d0b22", border: "1px solid rgba(139,92,246,0.2)",
+              borderRadius: "14px", boxShadow: "0 24px 80px rgba(0,0,0,0.9), 0 0 0 1px rgba(139,92,246,0.05)",
+              padding: "16px", width: "240px",
+            }}>
+              <div style={{ fontSize: "9px", color: "rgba(255,255,255,0.3)", letterSpacing: "3px", textTransform: "uppercase", marginBottom: "12px" }}>Format</div>
+              <div style={{ display: "flex", gap: "6px", marginBottom: "16px" }}>
                 {(["png", "jpeg", "webp"] as const).map((f) => (
-                  <button
-                    key={f}
-                    onClick={() => setExportFormat(f)}
-                    className={`export-format-btn flex-1 ${exportFormat === f ? "active" : ""}`}
-                  >
-                    {f.toUpperCase()}
-                  </button>
+                  <button key={f} onClick={() => setExportFormat(f)} className={`export-format-btn flex-1`}
+                    style={{ flex: 1, fontWeight: exportFormat === f ? 700 : 600,
+                      background: exportFormat === f ? "rgba(139,92,246,0.2)" : "none",
+                      color: exportFormat === f ? "#c4b5fd" : "rgba(255,255,255,0.35)",
+                      border: exportFormat === f ? "1px solid rgba(139,92,246,0.5)" : "1px solid rgba(255,255,255,0.08)",
+                    }}
+                  >{f.toUpperCase()}</button>
                 ))}
               </div>
-
               {exportFormat !== "png" && (
-                <div className="mb-4">
-                  <div className="flex justify-between mb-2">
-                    <span className="text-[10px] text-gray-500">Quality</span>
-                    <span className="text-[10px] text-white font-mono">{exportQuality}%</span>
+                <div style={{ marginBottom: "16px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
+                    <span style={{ fontSize: "10px", color: "rgba(255,255,255,0.3)" }}>Quality</span>
+                    <span style={{ fontSize: "10px", color: "#c4b5fd", fontFamily: "monospace", fontWeight: 700 }}>{exportQuality}%</span>
                   </div>
-                  <input
-                    type="range" min={50} max={100} value={exportQuality}
-                    onChange={(e) => setExportQuality(Number(e.target.value))}
-                  />
+                  <input type="range" min={50} max={100} value={exportQuality} onChange={(e) => setExportQuality(Number(e.target.value))} />
                 </div>
               )}
-
-              <div className="flex flex-col gap-1 mb-3">
-                <button
-                  onClick={handleExport}
-                  className="w-full action-btn-primary action-btn justify-center py-2"
-                >
+              <div style={{ display: "flex", flexDirection: "column", gap: "4px", marginBottom: "12px" }}>
+                <button onClick={handleExport} className="action-btn action-btn-primary" style={{ justifyContent: "center", padding: "8px" }}>
                   <Download size={13} /> Export as {exportFormat.toUpperCase()}
                 </button>
-                <button
-                  onClick={handleCopyToClipboard}
-                  className="w-full action-btn justify-center py-1.5"
-                >
-                  <Clipboard size={12} />
-                  {copySuccess ? "Copied!" : "Copy to Clipboard"}
+                <button onClick={handleCopyToClipboard} className="action-btn" style={{ justifyContent: "center", padding: "7px" }}>
+                  <Clipboard size={12} />{copySuccess ? " Copied!" : " Copy to Clipboard"}
                 </button>
               </div>
-
-              <div className="h-px bg-[hsl(220_15%_18%)] mb-3" />
-              <div className="text-[10px] text-gray-500 uppercase tracking-widest mb-2">Advanced</div>
-              <div className="flex flex-col gap-1">
-                <button
-                  onClick={handleBatchExport}
-                  className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-[hsl(220_15%_16%)] text-[11px] text-gray-400 hover:text-white transition-all"
+              <div style={{ height: "1px", background: "rgba(139,92,246,0.1)", margin: "8px 0" }} />
+              <div style={{ fontSize: "9px", color: "rgba(255,255,255,0.25)", letterSpacing: "3px", textTransform: "uppercase", marginBottom: "8px" }}>Advanced</div>
+              {[
+                { action: handleBatchExport, icon: <Copy size={11} />, label: "Batch Export (PNG+JPG+WebP)" },
+                { action: handlePrintExport, icon: <Printer size={11} />, label: "Print / Export as PDF" },
+              ].map(({ action, icon, label }) => (
+                <button key={label} onClick={action} style={{
+                  width: "100%", display: "flex", alignItems: "center", gap: "7px",
+                  padding: "6px 8px", borderRadius: "7px", background: "none", border: "none",
+                  fontSize: "11px", color: "rgba(255,255,255,0.4)", cursor: "pointer",
+                  transition: "all 0.15s", textAlign: "left",
+                }}
+                  onMouseOver={e => (e.currentTarget.style.background = "rgba(139,92,246,0.12)", e.currentTarget.style.color = "rgba(255,255,255,0.75)")}
+                  onMouseOut={e => (e.currentTarget.style.background = "none", e.currentTarget.style.color = "rgba(255,255,255,0.4)")}
                 >
-                  <Copy size={11} /> Batch Export (PNG + JPG + WebP)
+                  {icon} {label}
                 </button>
-                <button
-                  onClick={handlePrintExport}
-                  className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-[hsl(220_15%_16%)] text-[11px] text-gray-400 hover:text-white transition-all"
-                >
-                  <Printer size={11} /> Print / Export as PDF
-                </button>
-              </div>
+              ))}
             </div>
           )}
         </div>

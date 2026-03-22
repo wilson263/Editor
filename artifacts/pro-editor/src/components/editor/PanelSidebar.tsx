@@ -116,15 +116,27 @@ export default function PanelSidebar() {
   };
 
   return (
-    <div className="w-64 bg-[hsl(222_18%_10%)] border-l border-[hsl(220_15%_14%)] flex flex-col shrink-0 overflow-hidden">
+    <div style={{
+      width: "256px",
+      background: "linear-gradient(180deg, #080614 0%, #060412 100%)",
+      borderLeft: "1px solid rgba(139,92,246,0.1)",
+      display: "flex", flexDirection: "column",
+      flexShrink: 0, overflow: "hidden",
+      boxShadow: "inset 1px 0 0 rgba(139,92,246,0.04)",
+    }}>
       {panels[activePanel] || (
-        <div className="flex flex-col items-center justify-center h-full gap-3 text-gray-700">
-          <div className="w-12 h-12 rounded-2xl bg-[hsl(220_15%_14%)] flex items-center justify-center">
-            <SlidersHorizontal size={20} className="text-gray-600" />
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", gap: "16px" }}>
+          <div style={{
+            width: "52px", height: "52px", borderRadius: "16px",
+            background: "rgba(139,92,246,0.08)",
+            border: "1px solid rgba(139,92,246,0.15)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+          }}>
+            <SlidersHorizontal size={22} style={{ color: "rgba(139,92,246,0.5)" }} />
           </div>
-          <div className="text-center">
-            <div className="text-xs font-semibold text-gray-500 mb-1">No panel selected</div>
-            <div className="text-[10px] text-gray-700 max-w-[160px] text-center leading-relaxed">
+          <div style={{ textAlign: "center" }}>
+            <div style={{ fontSize: "12px", fontWeight: 600, color: "rgba(255,255,255,0.3)", marginBottom: "6px" }}>No panel selected</div>
+            <div style={{ fontSize: "10px", color: "rgba(255,255,255,0.15)", maxWidth: "160px", lineHeight: 1.65, textAlign: "center" }}>
               Choose a tool or panel from the left sidebar
             </div>
           </div>
