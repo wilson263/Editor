@@ -5,7 +5,16 @@ export type ActiveTool =
   | "select" | "crop" | "brush" | "eraser" | "text" | "shape" | "gradient"
   | "heal" | "clone" | "blur-tool" | "sharpen-tool" | "dodge" | "burn"
   | "smudge" | "liquify" | "lasso" | "magic-wand" | "eyedropper" | "hand"
-  | "ruler" | "pen";
+  | "ruler" | "pen"
+  | "lut" | "liquify-panel" | "raw-controls"
+  | "curve-editor" | "color-harmony" | "glitch-art" | "double-exposure"
+  | "pixelate" | "smart-sharpen" | "waveform" | "motion-blur"
+  | "frequency-separation" | "content-aware" | "noise-reduction"
+  | "perspective" | "navigator" | "local-adj" | "presets" | "masking"
+  | "batch" | "palette" | "tone-mapping" | "effects" | "stickers"
+  | "collage" | "portrait" | "selective" | "watermark" | "gradient-panel"
+  | "brush-panel" | "history" | "detail" | "color" | "crop-panel"
+  | "ai" | "text-panel" | "layers" | "filters" | "adjustments" | string;
 
 export type BlendMode =
   | "normal" | "multiply" | "screen" | "overlay" | "darken" | "lighten"

@@ -8,7 +8,7 @@ import {
   User, Grid3X3, Smile, Film, Scissors, Star, Package, Box,
   BookOpen, RadioTower, Navigation, Move3d, Download, Layers2,
   TrendingUp, BarChart2, ZoomIn, Grid, Layers as LayersIcon,
-  Activity
+  Activity, Camera
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 
@@ -83,6 +83,9 @@ const PANELS = [
   { id: "glitch-art", icon: <Zap size={13} />, label: "Glitch", group: "Art" },
   { id: "double-exposure", icon: <Layers2 size={13} />, label: "DblExp", group: "Art" },
   { id: "pixelate", icon: <Grid size={13} />, label: "Pixel", group: "Art" },
+  { id: "lut", icon: <Film size={13} />, label: "LUT", group: "Art" },
+  { id: "liquify-panel", icon: <Droplets size={13} />, label: "Liquify", group: "Pixel" },
+  { id: "raw-controls", icon: <Camera size={13} />, label: "RAW", group: "Pixel" },
 ];
 
 const GROUP_LABELS: Record<string, string> = {

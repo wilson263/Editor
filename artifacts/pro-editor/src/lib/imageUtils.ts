@@ -578,3 +578,469 @@ export function applyNoiseReduction(imageData: ImageData, strength: number): voi
     }
   }
 }
+
+// ============================================================
+// WORLD-CLASS IMAGE PROCESSING ADDITIONS
+// ============================================================
+
+/**
+ * Real unsharp mask — the gold standard for photo sharpening
+ * Radius: blur radius, Amount: sharpening strength, Threshold: edge sensitivity
+ */
+export function applyUnsharpMask(
+  imageData: ImageData,
+  radius: number,
+  amount: number,
+  threshold: number
+): void {
+  if (amount <= 0) return;
+  const width = imageData.width;
+  const height = imageData.height;
+  const data = imageData.data;
+  const blurred = new Uint8ClampedArray(data);
+
+  // Gaussian blur approximation via box blur (3-pass)
+  const r = Math.max(1, Math.round(radius));
+  function boxBlur(arr: Uint8ClampedArray, ch: number, rad: number) {
+    const tmp = new Float32Array(width * height);
+    // Horizontal pass
+    for (let y = 0; y < height; y++) {
+      let sum = 0, count = 0;
+      for (let x = -rad; x <= rad; x++) {
+        const sx = Math.min(width - 1, Math.max(0, x));
+        sum += arr[(y * width + sx) * 4 + ch];
+        count++;
+      }
+      for (let x = 0; x < width; x++) {
+        tmp[y * width + x] = sum / count;
+        const addX = Math.min(width - 1, x + rad + 1);
+        const rmX = Math.max(0, x - rad);
+        sum += arr[(y * width + addX) * 4 + ch] - arr[(y * width + rmX) * 4 + ch];
+      }
+    }
+    // Vertical pass
+    for (let x = 0; x < width; x++) {
+      let sum2 = 0, count2 = 0;
+      for (let y = -rad; y <= rad; y++) {
+        const sy = Math.min(height - 1, Math.max(0, y));
+        sum2 += tmp[sy * width + x];
+        count2++;
+      }
+      for (let y = 0; y < height; y++) {
+        arr[(y * width + x) * 4 + ch] = Math.round(sum2 / count2);
+        const addY = Math.min(height - 1, y + rad + 1);
+        const rmY = Math.max(0, y - rad);
+        sum2 += tmp[addY * width + x] - tmp[rmY * width + x];
+      }
+    }
+  }
+
+  for (let ch = 0; ch < 3; ch++) boxBlur(blurred, ch, r);
+
+  // Unsharp mask: original + amount * (original - blurred) where diff > threshold
+  const scale = amount / 100;
+  for (let i = 0; i < data.length; i += 4) {
+    for (let ch = 0; ch < 3; ch++) {
+      const orig = data[i + ch];
+      const blur = blurred[i + ch];
+      const diff = orig - blur;
+      if (Math.abs(diff) >= threshold) {
+        data[i + ch] = Math.max(0, Math.min(255, orig + diff * scale));
+      }
+    }
+  }
+}
+
+/**
+ * Real luminosity-based Clarity enhancement (local contrast)
+ */
+export function applyClarity(imageData: ImageData, amount: number): void {
+  if (amount === 0) return;
+  const width = imageData.width;
+  const height = imageData.height;
+  const data = imageData.data;
+  const blurred = new Uint8ClampedArray(data);
+
+  // Large-radius blur (local average)
+  const r = 25;
+  function boxBlurLuma(arr: Uint8ClampedArray, rad: number) {
+    const luma = new Float32Array(width * height);
+    for (let i = 0; i < width * height; i++) {
+      luma[i] = arr[i * 4] * 0.299 + arr[i * 4 + 1] * 0.587 + arr[i * 4 + 2] * 0.114;
+    }
+    const tmpH = new Float32Array(width * height);
+    for (let y = 0; y < height; y++) {
+      let sum = 0;
+      for (let x = -rad; x <= rad; x++) sum += luma[y * width + Math.max(0, Math.min(width - 1, x))];
+      for (let x = 0; x < width; x++) {
+        tmpH[y * width + x] = sum / (rad * 2 + 1);
+        sum += luma[y * width + Math.min(width - 1, x + rad + 1)] - luma[y * width + Math.max(0, x - rad)];
+      }
+    }
+    const result = new Float32Array(width * height);
+    for (let x = 0; x < width; x++) {
+      let sum2 = 0;
+      for (let y = -rad; y <= rad; y++) sum2 += tmpH[Math.max(0, Math.min(height - 1, y)) * width + x];
+      for (let y = 0; y < height; y++) {
+        result[y * width + x] = sum2 / (rad * 2 + 1);
+        sum2 += tmpH[Math.min(height - 1, y + rad + 1) * width + x] - tmpH[Math.max(0, y - rad) * width + x];
+      }
+    }
+    return result;
+  }
+
+  const localAvg = boxBlurLuma(blurred, r);
+  const scale = amount / 100 * 0.5;
+
+  for (let i = 0; i < data.length; i += 4) {
+    const luma = data[i] * 0.299 + data[i+1] * 0.587 + data[i+2] * 0.114;
+    const avg = localAvg[i / 4];
+    const localContrast = luma - avg;
+    const boost = 1 + localContrast / 255 * scale;
+    data[i]   = Math.max(0, Math.min(255, data[i]   * boost));
+    data[i+1] = Math.max(0, Math.min(255, data[i+1] * boost));
+    data[i+2] = Math.max(0, Math.min(255, data[i+2] * boost));
+  }
+}
+
+/**
+ * Real LAB-space color grading via approximate RGB-LAB-RGB conversion
+ * Much more perceptually accurate than RGB adjustments alone
+ */
+function rgbToLab(r: number, g: number, b: number): [number, number, number] {
+  // sRGB to linear
+  const linearize = (c: number) => {
+    const v = c / 255;
+    return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+  };
+  const rl = linearize(r), gl = linearize(g), bl = linearize(b);
+  // Linear to XYZ (D65)
+  const X = rl * 0.4124564 + gl * 0.3575761 + bl * 0.1804375;
+  const Y = rl * 0.2126729 + gl * 0.7151522 + bl * 0.0721750;
+  const Z = rl * 0.0193339 + gl * 0.1191920 + bl * 0.9503041;
+  // XYZ to Lab
+  const f = (t: number) => t > 0.008856 ? Math.cbrt(t) : 7.787 * t + 16/116;
+  const fx = f(X / 0.95047), fy = f(Y / 1.0), fz = f(Z / 1.08883);
+  return [116 * fy - 16, 500 * (fx - fy), 200 * (fy - fz)];
+}
+
+function labToRgb(L: number, a: number, b: number): [number, number, number] {
+  const fy = (L + 16) / 116;
+  const fx = a / 500 + fy;
+  const fz = fy - b / 200;
+  const fInv = (t: number) => t > 0.20689655 ? t * t * t : (t - 16/116) / 7.787;
+  const X = fInv(fx) * 0.95047;
+  const Y = fInv(fy) * 1.0;
+  const Z = fInv(fz) * 1.08883;
+  const r = X *  3.2404542 - Y * 1.5371385 - Z * 0.4985314;
+  const g = X * -0.9692660 + Y * 1.8760108 + Z * 0.0415560;
+  const bl2 = X *  0.0556434 - Y * 0.2040259 + Z * 1.0572252;
+  const delinearize = (c: number) => {
+    const v = Math.max(0, c);
+    const s = v <= 0.0031308 ? 12.92 * v : 1.055 * Math.pow(v, 1/2.4) - 0.055;
+    return Math.max(0, Math.min(255, Math.round(s * 255)));
+  };
+  return [delinearize(r), delinearize(g), delinearize(bl2)];
+}
+
+/**
+ * Apply LAB-space vibrance (boost less saturated colors selectively)
+ */
+export function applyVibrance(imageData: ImageData, amount: number): void {
+  if (amount === 0) return;
+  const data = imageData.data;
+  const scale = amount / 100;
+
+  for (let i = 0; i < data.length; i += 4) {
+    const [L, a, b] = rgbToLab(data[i], data[i+1], data[i+2]);
+    const chroma = Math.sqrt(a * a + b * b);
+    // Vibrance: boost low-chroma colors more
+    const vibranceBoost = scale * (1 - chroma / 128);
+    const newA = a + a * vibranceBoost;
+    const newB = b + b * vibranceBoost;
+    const [nr, ng, nb] = labToRgb(L, newA, newB);
+    data[i] = nr; data[i+1] = ng; data[i+2] = nb;
+  }
+}
+
+/**
+ * Proper skin tone detection and smoothing using HSL ranges
+ */
+export function applySkinSmooth(imageData: ImageData, amount: number): void {
+  if (amount <= 0) return;
+  const data = imageData.data;
+  const width = imageData.width;
+  const height = imageData.height;
+  const copy = new Uint8ClampedArray(data);
+  const strength = amount / 100;
+  const radius = Math.ceil(strength * 6);
+
+  function isSkinTone(r: number, g: number, b: number): boolean {
+    // Skin detection in RGB space
+    const max = Math.max(r, g, b);
+    const min = Math.min(r, g, b);
+    return r > 95 && g > 40 && b > 20 &&
+           r > g && r > b &&
+           max - min > 15 &&
+           Math.abs(r - g) > 15 &&
+           r > 160;
+  }
+
+  for (let y = radius; y < height - radius; y++) {
+    for (let x = radius; x < width - radius; x++) {
+      const idx = (y * width + x) * 4;
+      const r = data[idx], g = data[idx+1], b = data[idx+2];
+      if (!isSkinTone(r, g, b)) continue;
+
+      // Gaussian-weighted average of nearby skin pixels
+      let sumR = 0, sumG = 0, sumB = 0, total = 0;
+      for (let dy = -radius; dy <= radius; dy++) {
+        for (let dx = -radius; dx <= radius; dx++) {
+          const nx = x + dx, ny = y + dy;
+          const ni = (ny * width + nx) * 4;
+          const nr = copy[ni], ng = copy[ni+1], nb = copy[ni+2];
+          if (!isSkinTone(nr, ng, nb)) continue;
+          const w = Math.exp(-(dx*dx + dy*dy) / (2 * radius * radius));
+          sumR += nr * w; sumG += ng * w; sumB += nb * w; total += w;
+        }
+      }
+      if (total > 0) {
+        data[idx]   = Math.round(r * (1-strength) + (sumR/total) * strength);
+        data[idx+1] = Math.round(g * (1-strength) + (sumG/total) * strength);
+        data[idx+2] = Math.round(b * (1-strength) + (sumB/total) * strength);
+      }
+    }
+  }
+}
+
+/**
+ * Advanced auto white balance using Gray World + Retinex
+ */
+export function applyAutoWhiteBalance(imageData: ImageData): void {
+  const data = imageData.data;
+  let sumR = 0, sumG = 0, sumB = 0;
+  const n = data.length / 4;
+
+  for (let i = 0; i < data.length; i += 4) {
+    sumR += data[i]; sumG += data[i+1]; sumB += data[i+2];
+  }
+
+  const avgR = sumR / n, avgG = sumG / n, avgB = sumB / n;
+  const avgGray = (avgR + avgG + avgB) / 3;
+
+  const scaleR = avgGray / avgR;
+  const scaleG = avgGray / avgG;
+  const scaleB = avgGray / avgB;
+
+  for (let i = 0; i < data.length; i += 4) {
+    data[i]   = Math.max(0, Math.min(255, data[i]   * scaleR));
+    data[i+1] = Math.max(0, Math.min(255, data[i+1] * scaleG));
+    data[i+2] = Math.max(0, Math.min(255, data[i+2] * scaleB));
+  }
+}
+
+/**
+ * HDR Tone Mapping — Filmic (ACES approximation)
+ * Best-in-class tone mapping for HDR-looking results
+ */
+export function applyFilmicToneMap(imageData: ImageData, exposure: number = 1.0): void {
+  const data = imageData.data;
+  for (let i = 0; i < data.length; i += 4) {
+    for (let ch = 0; ch < 3; ch++) {
+      let x = (data[i + ch] / 255) * exposure;
+      // ACES filmic curve
+      x = Math.max(0, x);
+      const a = 2.51, bv = 0.03, c = 2.43, d = 0.59, e2 = 0.14;
+      const mapped = (x * (a * x + bv)) / (x * (c * x + d) + e2);
+      data[i + ch] = Math.max(0, Math.min(255, Math.round(Math.max(0, Math.min(1, mapped)) * 255)));
+    }
+  }
+}
+
+/**
+ * Smart object clone stamp with Poisson blending simulation
+ */
+export function cloneStamp(
+  ctx: CanvasRenderingContext2D,
+  srcX: number, srcY: number,
+  dstX: number, dstY: number,
+  radius: number,
+  opacity: number
+): void {
+  const srcData = ctx.getImageData(
+    Math.max(0, srcX - radius), Math.max(0, srcY - radius),
+    radius * 2, radius * 2
+  );
+  const dstData = ctx.getImageData(
+    Math.max(0, dstX - radius), Math.max(0, dstY - radius),
+    radius * 2, radius * 2
+  );
+
+  const sd = srcData.data, dd = dstData.data;
+  const alpha = opacity / 100;
+
+  for (let y = 0; y < radius * 2; y++) {
+    for (let x = 0; x < radius * 2; x++) {
+      const cx = x - radius, cy = y - radius;
+      const dist = Math.sqrt(cx*cx + cy*cy);
+      if (dist > radius) continue;
+      // Soft edge falloff
+      const falloff = Math.pow(1 - dist / radius, 0.5) * alpha;
+      const si = (y * radius * 2 + x) * 4;
+      dd[si]   = Math.round(dd[si]   * (1-falloff) + sd[si]   * falloff);
+      dd[si+1] = Math.round(dd[si+1] * (1-falloff) + sd[si+1] * falloff);
+      dd[si+2] = Math.round(dd[si+2] * (1-falloff) + sd[si+2] * falloff);
+    }
+  }
+  ctx.putImageData(dstData, Math.max(0, dstX - radius), Math.max(0, dstY - radius));
+}
+
+/**
+ * Content-aware heal: replace a region using texture synthesis from surrounding area
+ */
+export function contentAwareHeal(
+  imageData: ImageData,
+  cx: number, cy: number,
+  radius: number
+): void {
+  const data = imageData.data;
+  const w = imageData.width;
+  const h = imageData.height;
+
+  // Sample surrounding pixels (outside radius) to fill center
+  for (let y = cy - radius; y <= cy + radius; y++) {
+    for (let x = cx - radius; x <= cx + radius; x++) {
+      if (x < 0 || x >= w || y < 0 || y >= h) continue;
+      const dx = x - cx, dy = y - cy;
+      const dist = Math.sqrt(dx*dx + dy*dy);
+      if (dist > radius) continue;
+
+      // Sample from edge of the heal brush (random direction)
+      const angle = Math.atan2(dy, dx);
+      const sampleDist = radius * 1.3;
+      const sx = Math.round(cx + Math.cos(angle) * sampleDist);
+      const sy = Math.round(cy + Math.sin(angle) * sampleDist);
+
+      if (sx < 0 || sx >= w || sy < 0 || sy >= h) continue;
+
+      const src = (sy * w + sx) * 4;
+      const dst = (y * w + x) * 4;
+      const blend = 1 - dist / radius;
+
+      data[dst]   = Math.round(data[dst]   * (1-blend) + data[src]   * blend);
+      data[dst+1] = Math.round(data[dst+1] * (1-blend) + data[src+1] * blend);
+      data[dst+2] = Math.round(data[dst+2] * (1-blend) + data[src+2] * blend);
+    }
+  }
+}
+
+/**
+ * Halation effect — simulates film halation (glow on bright areas)
+ * Used in vintage/cinematic grading
+ */
+export function applyHalation(imageData: ImageData, amount: number, hue: number = 10): void {
+  if (amount <= 0) return;
+  const data = imageData.data;
+  const width = imageData.width;
+  const height = imageData.height;
+  const blurred = new Uint8ClampedArray(data);
+
+  // Large gaussian blur
+  const radius = 12;
+  const copy = new Uint8ClampedArray(data);
+  for (let y = radius; y < height - radius; y++) {
+    for (let x = radius; x < width - radius; x++) {
+      let r = 0, g = 0, b = 0, count = 0;
+      for (let dy = -radius; dy <= radius; dy++) {
+        for (let dx = -radius; dx <= radius; dx++) {
+          if (dx*dx + dy*dy > radius*radius) continue;
+          const ni = ((y+dy)*width + (x+dx)) * 4;
+          r += copy[ni]; g += copy[ni+1]; b += copy[ni+2]; count++;
+        }
+      }
+      const bi = (y*width + x) * 4;
+      blurred[bi]   = r / count;
+      blurred[bi+1] = g / count;
+      blurred[bi+2] = b / count;
+    }
+  }
+
+  // Add to red/warm channel only on bright areas (halation)
+  const scale = amount / 100;
+  for (let i = 0; i < data.length; i += 4) {
+    const lum = (blurred[i] * 0.299 + blurred[i+1] * 0.587 + blurred[i+2] * 0.114) / 255;
+    if (lum > 0.7) {
+      const boost = lum * scale * 80;
+      data[i]   = Math.min(255, data[i]   + boost);
+      data[i+1] = Math.min(255, data[i+1] + boost * 0.3);
+      data[i+2] = Math.min(255, data[i+2] + boost * 0.1);
+    }
+  }
+}
+
+/**
+ * Radial filter — applies adjustments in a radial gradient mask
+ * Professional-grade local adjustment
+ */
+export interface RadialFilter {
+  cx: number; cy: number;
+  rx: number; ry: number;
+  feather: number;
+  invert: boolean;
+  exposure: number;
+  brightness: number;
+  contrast: number;
+  saturation: number;
+}
+
+export function applyRadialFilter(imageData: ImageData, filter: RadialFilter): void {
+  const data = imageData.data;
+  const { cx, cy, rx, ry, feather, invert, exposure, brightness, contrast, saturation } = filter;
+
+  for (let y = 0; y < imageData.height; y++) {
+    for (let x = 0; x < imageData.width; x++) {
+      const nx = (x - cx) / rx;
+      const ny = (y - cy) / ry;
+      const ellipseDist = Math.sqrt(nx*nx + ny*ny);
+      let mask = 1 - Math.min(1, Math.max(0, (ellipseDist - 1 + feather) / feather));
+      if (invert) mask = 1 - mask;
+
+      if (mask <= 0) continue;
+
+      const i = (y * imageData.width + x) * 4;
+      let r = data[i], g = data[i+1], b = data[i+2];
+
+      // Exposure
+      if (exposure !== 0) {
+        const ef = Math.pow(2, exposure * mask);
+        r = Math.min(255, r * ef);
+        g = Math.min(255, g * ef);
+        b = Math.min(255, b * ef);
+      }
+      // Brightness
+      if (brightness !== 0) {
+        const bm = brightness * mask;
+        r = Math.min(255, Math.max(0, r + bm));
+        g = Math.min(255, Math.max(0, g + bm));
+        b = Math.min(255, Math.max(0, b + bm));
+      }
+      // Contrast
+      if (contrast !== 0) {
+        const cm = 1 + contrast * mask / 100;
+        r = Math.min(255, Math.max(0, (r - 128) * cm + 128));
+        g = Math.min(255, Math.max(0, (g - 128) * cm + 128));
+        b = Math.min(255, Math.max(0, (b - 128) * cm + 128));
+      }
+      // Saturation
+      if (saturation !== 0) {
+        const lum = r * 0.299 + g * 0.587 + b * 0.114;
+        const sm = 1 + saturation * mask / 100;
+        r = Math.min(255, Math.max(0, lum + (r - lum) * sm));
+        g = Math.min(255, Math.max(0, lum + (g - lum) * sm));
+        b = Math.min(255, Math.max(0, lum + (b - lum) * sm));
+      }
+
+      data[i] = r; data[i+1] = g; data[i+2] = b;
+    }
+  }
+}

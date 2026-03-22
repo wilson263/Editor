@@ -36,10 +36,18 @@ import WaveformPanel from "./panels/WaveformPanel";
 import SmartSharpenPanel from "./panels/SmartSharpenPanel";
 import DoubleExposurePanel from "./panels/DoubleExposurePanel";
 import PixelatePanel from "./panels/PixelatePanel";
+import LUTPanel from "./panels/LUTPanel";
+import LiquifyPanel from "./panels/LiquifyPanel";
+import RAWControlsPanel from "./panels/RAWControlsPanel";
 import { SlidersHorizontal } from "lucide-react";
+import { useState } from "react";
+import type { LiquifyTool } from "./panels/LiquifyPanel";
 
 export default function PanelSidebar() {
-  const { activePanel } = useEditorStore();
+  const { activePanel, setActivePanel, setSourceImage } = useEditorStore();
+  const [liquifyTool, setLiquifyTool] = useState<LiquifyTool>("push");
+  const [liquifySize, setLiquifySize] = useState(80);
+  const [liquifyPressure, setLiquifyPressure] = useState(50);
 
   const panels: Record<string, React.ReactNode> = {
     adjustments: <AdjustmentsPanel />,
@@ -79,6 +87,32 @@ export default function PanelSidebar() {
     "smart-sharpen": <SmartSharpenPanel />,
     "double-exposure": <DoubleExposurePanel />,
     pixelate: <PixelatePanel />,
+    "lut": <LUTPanel />,
+    "raw-controls": <RAWControlsPanel />,
+    "liquify-panel": (
+      <LiquifyPanel
+        activeTool={liquifyTool}
+        onToolChange={setLiquifyTool}
+        brushSize={liquifySize}
+        onBrushSizeChange={setLiquifySize}
+        brushPressure={liquifyPressure}
+        onBrushPressureChange={setLiquifyPressure}
+        onReset={() => {
+          const e = new CustomEvent("liquify-reset");
+          window.dispatchEvent(e);
+        }}
+        onApply={() => {
+          const e = new CustomEvent("liquify-apply");
+          window.dispatchEvent(e);
+          setActivePanel("adjustments");
+        }}
+        onCancel={() => {
+          const e = new CustomEvent("liquify-cancel");
+          window.dispatchEvent(e);
+          setActivePanel("adjustments");
+        }}
+      />
+    ),
   };
 
   return (

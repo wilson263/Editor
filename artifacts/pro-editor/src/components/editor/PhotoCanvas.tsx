@@ -1,6 +1,10 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
 import { useEditorStore } from '@/lib/editorStore';
 import { buildCanvasFilter, applyPixelAdjustments, applyVignette } from '@/lib/imageUtils';
+import {
+  createLiquifyMesh, applyLiquifyStroke, applyLiquifyMesh, resetMesh,
+  type LiquifyMesh
+} from '@/lib/liquify';
 import { ZoomIn, ZoomOut, Maximize2, Pipette, X } from 'lucide-react';
 
 export default function PhotoCanvas() {
@@ -22,6 +26,14 @@ export default function PhotoCanvas() {
 
   // Eyedropper state
   const [eyedropperPreview, setEyedropperPreview] = useState<{x:number;y:number;color:string}|null>(null);
+
+  // Liquify state
+  const liquifyMeshRef = useRef<LiquifyMesh | null>(null);
+  const liquifyBaseImageRef = useRef<ImageData | null>(null);
+  const liquifyActiveToolRef = useRef<string>("push");
+  const liquifyPressureRef = useRef<number>(50);
+  const [isLiquifyActive, setIsLiquifyActive] = useState(false);
+  const lastLiquifyPos = useRef<{x:number;y:number}|null>(null);
 
   const {
     sourceImage, adjustments, selectedFilter, zoom, setZoom,
@@ -93,6 +105,57 @@ export default function PhotoCanvas() {
 
   useEffect(() => { redraw(); }, [redraw]);
 
+  // Liquify event listeners
+  useEffect(() => {
+    const handleLiquifyReset = () => {
+      if (liquifyMeshRef.current) resetMesh(liquifyMeshRef.current);
+      // Restore base image
+      const canvas = canvasRef.current;
+      const ctx = canvas?.getContext('2d', { willReadFrequently: true });
+      if (canvas && ctx && liquifyBaseImageRef.current) {
+        ctx.putImageData(liquifyBaseImageRef.current, 0, 0);
+      }
+    };
+    const handleLiquifyApply = () => {
+      // Commit the warp — update sourceImage
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      setSourceImage(canvas.toDataURL('image/png'));
+      liquifyMeshRef.current = null;
+      liquifyBaseImageRef.current = null;
+      setIsLiquifyActive(false);
+    };
+    const handleLiquifyCancel = () => {
+      handleLiquifyReset();
+      liquifyMeshRef.current = null;
+      liquifyBaseImageRef.current = null;
+      setIsLiquifyActive(false);
+    };
+
+    window.addEventListener('liquify-reset', handleLiquifyReset);
+    window.addEventListener('liquify-apply', handleLiquifyApply);
+    window.addEventListener('liquify-cancel', handleLiquifyCancel);
+    return () => {
+      window.removeEventListener('liquify-reset', handleLiquifyReset);
+      window.removeEventListener('liquify-apply', handleLiquifyApply);
+      window.removeEventListener('liquify-cancel', handleLiquifyCancel);
+    };
+  }, [setSourceImage]);
+
+  // Update liquify tool/pressure from panel custom events
+  useEffect(() => {
+    const isLiquify = activeTool === 'liquify';
+    if (isLiquify) {
+      const canvas = canvasRef.current;
+      const ctx = canvas?.getContext('2d', { willReadFrequently: true });
+      if (canvas && ctx && !liquifyMeshRef.current) {
+        liquifyBaseImageRef.current = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        liquifyMeshRef.current = createLiquifyMesh(canvas.width, canvas.height, 32);
+        setIsLiquifyActive(true);
+      }
+    }
+  }, [activeTool]);
+
   function getCanvasPos(e: React.MouseEvent<HTMLCanvasElement | HTMLDivElement>) {
     const canvas = canvasRef.current;
     if (!canvas) return { x: 0, y: 0 };
@@ -139,6 +202,46 @@ export default function PhotoCanvas() {
       setIsCropDragging(true);
       return;
     }
+    if (activeTool === 'liquify') {
+      lastLiquifyPos.current = getCanvasPos(e);
+      return;
+    }
+    if (activeTool === 'magic-wand') {
+      // Real flood-fill magic wand selection visualization
+      const canvas = canvasRef.current;
+      const ctx = canvas?.getContext('2d', { willReadFrequently: true });
+      if (!canvas || !ctx) return;
+      const pos = getCanvasPos(e);
+      const px = Math.round(pos.x), py = Math.round(pos.y);
+      if (px < 0 || px >= canvas.width || py < 0 || py >= canvas.height) return;
+      const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const data = imgData.data;
+      const idx = (py * canvas.width + px) * 4;
+      const seedR = data[idx], seedG = data[idx+1], seedB = data[idx+2];
+      const tolerance = 30;
+      // BFS flood fill
+      const visited = new Uint8Array(canvas.width * canvas.height);
+      const stack = [px, py];
+      while (stack.length > 0) {
+        const cy2 = stack.pop()!;
+        const cx2 = stack.pop()!;
+        if (cx2 < 0 || cx2 >= canvas.width || cy2 < 0 || cy2 >= canvas.height) continue;
+        const si = cy2 * canvas.width + cx2;
+        if (visited[si]) continue;
+        visited[si] = 1;
+        const di = si * 4;
+        const dr = Math.abs(data[di] - seedR);
+        const dg = Math.abs(data[di+1] - seedG);
+        const db = Math.abs(data[di+2] - seedB);
+        if (dr + dg + db > tolerance * 3) continue;
+        // Paint selection overlay
+        data[di] = Math.min(255, data[di] + 40);
+        data[di+2] = Math.min(255, data[di+2] + 80);
+        stack.push(cx2+1, cy2, cx2-1, cy2, cx2, cy2+1, cx2, cy2-1);
+      }
+      ctx.putImageData(imgData, 0, 0);
+      return;
+    }
     if (!paintTools.includes(activeTool)) return;
     setIsPainting(true);
     lastPos.current = getCanvasPos(e);
@@ -160,6 +263,38 @@ export default function PhotoCanvas() {
         w: Math.abs(pos.x - cropStart.x),
         h: Math.abs(pos.y - cropStart.y),
       });
+      return;
+    }
+
+    // Liquify warp on mouse drag
+    if (activeTool === 'liquify' && lastLiquifyPos.current && liquifyMeshRef.current && liquifyBaseImageRef.current) {
+      const canvas = canvasRef.current;
+      const ctx = canvas?.getContext('2d', { willReadFrequently: true });
+      if (!canvas || !ctx) return;
+      const pos = getCanvasPos(e);
+      const last = lastLiquifyPos.current;
+      const dx = pos.x - last.x;
+      const dy = pos.y - last.y;
+
+      applyLiquifyStroke(
+        liquifyMeshRef.current,
+        pos.x, pos.y, dx, dy,
+        brushSize,
+        liquifyPressureRef.current,
+        liquifyActiveToolRef.current as any
+      );
+
+      // Apply mesh to base image
+      const srcData = new ImageData(
+        new Uint8ClampedArray(liquifyBaseImageRef.current.data),
+        liquifyBaseImageRef.current.width,
+        liquifyBaseImageRef.current.height
+      );
+      const dstData = ctx.createImageData(canvas.width, canvas.height);
+      applyLiquifyMesh(srcData, dstData, liquifyMeshRef.current);
+      ctx.putImageData(dstData, 0, 0);
+
+      lastLiquifyPos.current = pos;
       return;
     }
 
@@ -232,6 +367,10 @@ export default function PhotoCanvas() {
     if (activeTool === 'crop' && isCropDragging && cropRect && cropRect.w > 20 && cropRect.h > 20) {
       setIsCropDragging(false);
       applyCrop();
+      return;
+    }
+    if (activeTool === 'liquify') {
+      lastLiquifyPos.current = null;
       return;
     }
     setIsCropDragging(false);
