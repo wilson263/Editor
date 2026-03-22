@@ -12,6 +12,9 @@ import BrushPanel from "./panels/BrushPanel";
 import GradientPanel from "./panels/GradientPanel";
 import WatermarkPanel from "./panels/WatermarkPanel";
 import SelectiveColorPanel from "./panels/SelectiveColorPanel";
+import PortraitPanel from "./panels/PortraitPanel";
+import CollagePanel from "./panels/CollagePanel";
+import StickerPanel from "./panels/StickerPanel";
 import { SlidersHorizontal } from "lucide-react";
 
 export default function PanelSidebar() {
@@ -31,19 +34,22 @@ export default function PanelSidebar() {
     "gradient-panel": <GradientPanel />,
     watermark: <WatermarkPanel />,
     selective: <SelectiveColorPanel />,
+    portrait: <PortraitPanel />,
+    collage: <CollagePanel />,
+    stickers: <StickerPanel />,
   };
 
   return (
     <div className="w-64 bg-[hsl(222_18%_10%)] border-l border-[hsl(220_15%_14%)] flex flex-col shrink-0 overflow-hidden">
       {panels[activePanel] || (
         <div className="flex flex-col items-center justify-center h-full gap-3 text-gray-700">
-          <div className="w-10 h-10 rounded-xl bg-[hsl(220_15%_14%)] flex items-center justify-center">
-            <SlidersHorizontal size={18} className="text-gray-600" />
+          <div className="w-12 h-12 rounded-2xl bg-[hsl(220_15%_14%)] flex items-center justify-center">
+            <SlidersHorizontal size={20} className="text-gray-600" />
           </div>
           <div className="text-center">
-            <div className="text-xs font-medium text-gray-500 mb-1">No panel selected</div>
+            <div className="text-xs font-semibold text-gray-500 mb-1">No panel selected</div>
             <div className="text-[10px] text-gray-700 max-w-[160px] text-center leading-relaxed">
-              Click a panel icon in the left toolbar to open it
+              Choose a tool or panel from the left sidebar
             </div>
           </div>
         </div>
