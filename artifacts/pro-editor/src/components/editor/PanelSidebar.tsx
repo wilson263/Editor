@@ -27,6 +27,15 @@ import PerspectivePanel from "./panels/PerspectivePanel";
 import ExportPanel from "./panels/ExportPanel";
 import NoiseReductionPanel from "./panels/NoiseReductionPanel";
 import ContentAwarePanel from "./panels/ContentAwarePanel";
+import CurveEditorPanel from "./panels/CurveEditorPanel";
+import FrequencySeparationPanel from "./panels/FrequencySeparationPanel";
+import MotionBlurPanel from "./panels/MotionBlurPanel";
+import ColorHarmonyPanel from "./panels/ColorHarmonyPanel";
+import GlitchArtPanel from "./panels/GlitchArtPanel";
+import WaveformPanel from "./panels/WaveformPanel";
+import SmartSharpenPanel from "./panels/SmartSharpenPanel";
+import DoubleExposurePanel from "./panels/DoubleExposurePanel";
+import PixelatePanel from "./panels/PixelatePanel";
 import { SlidersHorizontal } from "lucide-react";
 
 export default function PanelSidebar() {
@@ -61,6 +70,15 @@ export default function PanelSidebar() {
     export: <ExportPanel />,
     "noise-reduction": <NoiseReductionPanel />,
     "content-aware": <ContentAwarePanel />,
+    "curve-editor": <CurveEditorPanel />,
+    "frequency-separation": <FrequencySeparationPanel />,
+    "motion-blur": <MotionBlurPanel />,
+    "color-harmony": <ColorHarmonyPanel />,
+    "glitch-art": <GlitchArtPanel />,
+    waveform: <WaveformPanel />,
+    "smart-sharpen": <SmartSharpenPanel />,
+    "double-exposure": <DoubleExposurePanel />,
+    pixelate: <PixelatePanel />,
   };
 
   return (

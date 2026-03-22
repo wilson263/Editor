@@ -6,7 +6,9 @@ import {
   Sliders, Palette, Scan, SlidersHorizontal, Filter,
   Move, Clock, Droplets, Stamp, Keyboard,
   User, Grid3X3, Smile, Film, Scissors, Star, Package, Box,
-  BookOpen, RadioTower, Navigation, Move3d, Download, Layers2
+  BookOpen, RadioTower, Navigation, Move3d, Download, Layers2,
+  TrendingUp, BarChart2, ZoomIn, Grid, Layers as LayersIcon,
+  Activity
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 
@@ -47,7 +49,7 @@ const PANELS = [
   { id: "palette", icon: <Star size={13} />, label: "Palette", group: "Creative" },
   { id: "gradient-panel", icon: <Blend size={13} />, label: "Grad", group: "Creative" },
   { id: "masking", icon: <Scissors size={13} />, label: "Mask", group: "Creative" },
-  // Layers & Tools
+  // Layers & Text
   { id: "layers", icon: <Layers size={13} />, label: "Layers", group: "Layers" },
   { id: "text-panel", icon: <Type size={13} />, label: "Text", group: "Layers" },
   { id: "stickers", icon: <Smile size={13} />, label: "Sticker", group: "Layers" },
@@ -64,12 +66,23 @@ const PANELS = [
   // Presets & History
   { id: "presets", icon: <BookOpen size={13} />, label: "Presets", group: "History" },
   { id: "history", icon: <Clock size={13} />, label: "History", group: "History" },
-  // New Panels
+  // View & Navigation
   { id: "navigator", icon: <Navigation size={13} />, label: "Nav", group: "View" },
   { id: "perspective", icon: <Move3d size={13} />, label: "Lens", group: "View" },
-  { id: "noise-reduction", icon: <Layers2 size={13} />, label: "Noise", group: "View" },
-  { id: "content-aware", icon: <Wand2 size={13} />, label: "Fill", group: "View" },
   { id: "export", icon: <Download size={13} />, label: "Export", group: "View" },
+  { id: "waveform", icon: <BarChart2 size={13} />, label: "Wave", group: "View" },
+  // Pixel Tools
+  { id: "noise-reduction", icon: <Layers2 size={13} />, label: "Noise", group: "Pixel" },
+  { id: "smart-sharpen", icon: <ZoomIn size={13} />, label: "Sharp", group: "Pixel" },
+  { id: "motion-blur", icon: <Wind size={13} />, label: "Motion", group: "Pixel" },
+  { id: "content-aware", icon: <Wand2 size={13} />, label: "Fill", group: "Pixel" },
+  { id: "frequency-separation", icon: <Activity size={13} />, label: "FreqSep", group: "Pixel" },
+  // Art & Creative
+  { id: "curve-editor", icon: <TrendingUp size={13} />, label: "Curves", group: "Art" },
+  { id: "color-harmony", icon: <Palette size={13} />, label: "Harmony", group: "Art" },
+  { id: "glitch-art", icon: <Zap size={13} />, label: "Glitch", group: "Art" },
+  { id: "double-exposure", icon: <Layers2 size={13} />, label: "DblExp", group: "Art" },
+  { id: "pixelate", icon: <Grid size={13} />, label: "Pixel", group: "Art" },
 ];
 
 const GROUP_LABELS: Record<string, string> = {
