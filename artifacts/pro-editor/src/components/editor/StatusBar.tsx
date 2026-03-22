@@ -184,7 +184,7 @@ export default function StatusBar() {
 
         <span className="text-[9px] text-gray-700 flex items-center gap-1">
           <Info size={8} />
-          ProEditor v3.0 · 8K
+          ProEditor v4.0 · 8K · AI
         </span>
       </div>
     </div>

@@ -6,7 +6,7 @@ import {
   Sliders, Palette, Scan, SlidersHorizontal, Filter,
   Move, Clock, Droplets, Stamp, Keyboard,
   User, Grid3X3, Smile, Film, Scissors, Star, Package, Box,
-  BookOpen, RadioTower
+  BookOpen, RadioTower, Navigation, Move3d, Download, Layers2
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 
@@ -64,6 +64,12 @@ const PANELS = [
   // Presets & History
   { id: "presets", icon: <BookOpen size={13} />, label: "Presets", group: "History" },
   { id: "history", icon: <Clock size={13} />, label: "History", group: "History" },
+  // New Panels
+  { id: "navigator", icon: <Navigation size={13} />, label: "Nav", group: "View" },
+  { id: "perspective", icon: <Move3d size={13} />, label: "Lens", group: "View" },
+  { id: "noise-reduction", icon: <Layers2 size={13} />, label: "Noise", group: "View" },
+  { id: "content-aware", icon: <Wand2 size={13} />, label: "Fill", group: "View" },
+  { id: "export", icon: <Download size={13} />, label: "Export", group: "View" },
 ];
 
 const GROUP_LABELS: Record<string, string> = {

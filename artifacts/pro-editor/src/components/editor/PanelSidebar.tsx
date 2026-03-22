@@ -22,6 +22,11 @@ import BatchPanel from "./panels/BatchPanel";
 import MaskingPanel from "./panels/MaskingPanel";
 import PresetsPanel from "./panels/PresetsPanel";
 import LocalAdjPanel from "./panels/LocalAdjPanel";
+import NavigatorPanel from "./panels/NavigatorPanel";
+import PerspectivePanel from "./panels/PerspectivePanel";
+import ExportPanel from "./panels/ExportPanel";
+import NoiseReductionPanel from "./panels/NoiseReductionPanel";
+import ContentAwarePanel from "./panels/ContentAwarePanel";
 import { SlidersHorizontal } from "lucide-react";
 
 export default function PanelSidebar() {
@@ -51,6 +56,11 @@ export default function PanelSidebar() {
     masking: <MaskingPanel />,
     presets: <PresetsPanel />,
     "local-adj": <LocalAdjPanel />,
+    navigator: <NavigatorPanel />,
+    perspective: <PerspectivePanel />,
+    export: <ExportPanel />,
+    "noise-reduction": <NoiseReductionPanel />,
+    "content-aware": <ContentAwarePanel />,
   };
 
   return (
