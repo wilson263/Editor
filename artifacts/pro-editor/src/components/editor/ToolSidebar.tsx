@@ -1,68 +1,143 @@
 import { useEditorStore, type ActiveTool } from "@/lib/editorStore";
 import {
-  MousePointer2, Crop, Brush, Eraser, Type, Square, Wand2,
-  Pipette, Layers, Sparkles, Sliders, Palette, Scan, Blend,
-  Zap, CircleDot, PenTool, Magnet, Scissors
+  MousePointer2, Crop, Brush, Eraser, Type, Square, Blend,
+  Wand2, Magnet, Scissors, CircleDot, Zap, Pipette, Hand,
+  PenTool, Lasso, Sparkles, Sun, Moon, Wind, Layers,
+  Sliders, Palette, Scan, Settings2, Filter, SlidersHorizontal,
+  Image, Move
 } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 
-const TOOLS: { id: ActiveTool; icon: React.ReactNode; label: string }[] = [
-  { id: "select", icon: <MousePointer2 size={17} />, label: "Select" },
-  { id: "crop", icon: <Crop size={17} />, label: "Crop" },
-  { id: "brush", icon: <Brush size={17} />, label: "Brush" },
-  { id: "eraser", icon: <Eraser size={17} />, label: "Eraser" },
-  { id: "heal", icon: <Wand2 size={17} />, label: "Heal" },
-  { id: "clone", icon: <Magnet size={17} />, label: "Clone" },
-  { id: "text", icon: <Type size={17} />, label: "Text" },
-  { id: "shape", icon: <Square size={17} />, label: "Shape" },
-  { id: "gradient", icon: <Blend size={17} />, label: "Gradient" },
-  { id: "blur-tool", icon: <CircleDot size={17} />, label: "Blur" },
-  { id: "sharpen-tool", icon: <Zap size={17} />, label: "Sharpen" },
+const TOOLS: { id: ActiveTool; icon: React.ReactNode; label: string; shortcut?: string; group: string }[] = [
+  { id: "select", icon: <MousePointer2 size={15} />, label: "Select", shortcut: "V", group: "select" },
+  { id: "hand", icon: <Hand size={15} />, label: "Pan", shortcut: "H", group: "select" },
+  { id: "lasso", icon: <Lasso size={15} />, label: "Lasso Select", shortcut: "L", group: "select" },
+  { id: "magic-wand", icon: <Wand2 size={15} />, label: "Magic Wand", shortcut: "W", group: "select" },
+  { id: "eyedropper", icon: <Pipette size={15} />, label: "Color Picker", shortcut: "I", group: "select" },
+  { id: "crop", icon: <Crop size={15} />, label: "Crop", shortcut: "C", group: "transform" },
+  { id: "ruler", icon: <Move size={15} />, label: "Straighten", shortcut: "R", group: "transform" },
+  { id: "brush", icon: <Brush size={15} />, label: "Brush", shortcut: "B", group: "paint" },
+  { id: "eraser", icon: <Eraser size={15} />, label: "Eraser", shortcut: "E", group: "paint" },
+  { id: "clone", icon: <Magnet size={15} />, label: "Clone Stamp", shortcut: "S", group: "paint" },
+  { id: "heal", icon: <Sparkles size={15} />, label: "Healing Brush", shortcut: "J", group: "paint" },
+  { id: "dodge", icon: <Sun size={15} />, label: "Dodge", shortcut: "O", group: "paint" },
+  { id: "burn", icon: <Moon size={15} />, label: "Burn", shortcut: "O", group: "paint" },
+  { id: "smudge", icon: <Wind size={15} />, label: "Smudge", group: "paint" },
+  { id: "blur-tool", icon: <CircleDot size={15} />, label: "Blur", group: "filter" },
+  { id: "sharpen-tool", icon: <Zap size={15} />, label: "Sharpen", group: "filter" },
+  { id: "liquify", icon: <Wind size={15} />, label: "Liquify", group: "filter" },
+  { id: "text", icon: <Type size={15} />, label: "Text", shortcut: "T", group: "shape" },
+  { id: "shape", icon: <Square size={15} />, label: "Shape", shortcut: "U", group: "shape" },
+  { id: "gradient", icon: <Blend size={15} />, label: "Gradient", shortcut: "G", group: "shape" },
+  { id: "pen", icon: <PenTool size={15} />, label: "Pen", shortcut: "P", group: "shape" },
 ];
 
 const PANELS = [
-  { id: "adjustments", icon: <Sliders size={17} />, label: "Adjust" },
-  { id: "filters", icon: <Sparkles size={17} />, label: "Filters" },
-  { id: "color", icon: <Palette size={17} />, label: "Color" },
-  { id: "crop-panel", icon: <Crop size={17} />, label: "Crop" },
-  { id: "layers", icon: <Layers size={17} />, label: "Layers" },
-  { id: "text-panel", icon: <Type size={17} />, label: "Text" },
-  { id: "ai", icon: <Scan size={17} />, label: "AI Tools" },
+  { id: "adjustments", icon: <Sliders size={15} />, label: "Adjust" },
+  { id: "filters", icon: <Filter size={15} />, label: "Filters" },
+  { id: "color", icon: <Palette size={15} />, label: "Color" },
+  { id: "crop-panel", icon: <Crop size={15} />, label: "Crop" },
+  { id: "layers", icon: <Layers size={15} />, label: "Layers" },
+  { id: "text-panel", icon: <Type size={15} />, label: "Text" },
+  { id: "detail", icon: <SlidersHorizontal size={15} />, label: "Detail" },
+  { id: "ai", icon: <Scan size={15} />, label: "AI" },
 ];
 
+const GROUP_LABELS: Record<string, string> = {
+  select: "Selection",
+  transform: "Transform",
+  paint: "Retouching",
+  filter: "Effects",
+  shape: "Drawing",
+};
+
+function ToolBtn({ tool, activeTool, onSelect }: { tool: typeof TOOLS[0]; activeTool: string; onSelect: () => void }) {
+  return (
+    <TooltipProvider delayDuration={400}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button
+            onClick={onSelect}
+            className={`tool-btn w-9 ${activeTool === tool.id ? "active" : ""}`}
+          >
+            {tool.icon}
+            <span className="leading-none">{tool.label.split(" ")[0]}</span>
+          </button>
+        </TooltipTrigger>
+        <TooltipContent side="right" className="text-xs">
+          <div className="font-semibold">{tool.label}</div>
+          {tool.shortcut && <div className="text-gray-400">Key: {tool.shortcut}</div>}
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
+
 export default function ToolSidebar() {
-  const { activeTool, setActiveTool, activePanel, setActivePanel } = useEditorStore();
+  const { activeTool, setActiveTool, activePanel, setActivePanel, brushColor, brushSize } = useEditorStore();
+
+  const groups = Array.from(new Set(TOOLS.map((t) => t.group)));
 
   return (
-    <div className="w-14 bg-[#0d0d1a] border-r border-[hsl(215_20%_16%)] flex flex-col items-center py-2 gap-1 shrink-0 overflow-y-auto">
-      {/* Tools */}
-      <div className="text-[9px] text-gray-600 font-medium mb-1 tracking-widest uppercase">Tools</div>
-      {TOOLS.map((t) => (
-        <button
-          key={t.id}
-          onClick={() => setActiveTool(t.id)}
-          title={t.label}
-          className={`tool-btn w-10 ${activeTool === t.id ? "active" : ""}`}
-        >
-          {t.icon}
-          <span>{t.label}</span>
-        </button>
+    <div className="w-[52px] bg-[hsl(222_18%_7%)] border-r border-[hsl(220_15%_13%)] flex flex-col items-center py-2 gap-0.5 shrink-0 overflow-y-auto overflow-x-hidden">
+      {/* Tools by group */}
+      {groups.map((group, gi) => (
+        <div key={group} className="flex flex-col items-center gap-0.5 w-full px-1.5">
+          {gi > 0 && <div className="w-7 h-px bg-[hsl(220_15%_15%)] my-1" />}
+          <div className="text-[7px] text-gray-700 font-bold uppercase tracking-widest mb-0.5 px-1 w-full text-center">
+            {GROUP_LABELS[group]}
+          </div>
+          {TOOLS.filter((t) => t.group === group).map((t) => (
+            <ToolBtn
+              key={t.id}
+              tool={t}
+              activeTool={activeTool}
+              onSelect={() => setActiveTool(t.id)}
+            />
+          ))}
+        </div>
       ))}
 
-      <div className="w-8 h-px bg-[hsl(215_20%_16%)] my-2" />
+      <div className="flex-1" />
+
+      {/* Brush color preview */}
+      {(activeTool === "brush" || activeTool === "eraser") && (
+        <div className="mb-1 w-full px-1.5">
+          <div className="w-full h-px bg-[hsl(220_15%_15%)] my-1" />
+          <div className="flex flex-col items-center gap-1">
+            <div
+              className="w-7 h-7 rounded-full border-2 border-[hsl(220_15%_25%)] shadow-inner"
+              style={{ background: brushColor }}
+              title={`Brush color: ${brushColor}`}
+            />
+            <div className="text-[8px] text-gray-600 font-mono">{brushSize}px</div>
+          </div>
+        </div>
+      )}
 
       {/* Panels */}
-      <div className="text-[9px] text-gray-600 font-medium mb-1 tracking-widest uppercase">Panels</div>
-      {PANELS.map((p) => (
-        <button
-          key={p.id}
-          onClick={() => setActivePanel(p.id)}
-          title={p.label}
-          className={`tool-btn w-10 ${activePanel === p.id ? "active" : ""}`}
-        >
-          {p.icon}
-          <span>{p.label}</span>
-        </button>
-      ))}
+      <div className="w-full px-1.5 pb-1">
+        <div className="w-7 h-px bg-[hsl(220_15%_15%)] my-1.5 mx-auto" />
+        <div className="text-[7px] text-gray-700 font-bold uppercase tracking-widest mb-0.5 text-center w-full">Panels</div>
+        {PANELS.map((p) => (
+          <TooltipProvider key={p.id} delayDuration={400}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={() => setActivePanel(p.id)}
+                  className={`tool-btn w-9 mx-auto ${activePanel === p.id ? "active" : ""}`}
+                >
+                  {p.icon}
+                  <span>{p.label}</span>
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="right" className="text-xs">
+                {p.label} Panel
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        ))}
+      </div>
     </div>
   );
 }

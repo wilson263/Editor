@@ -1,26 +1,55 @@
 import type { Adjustments } from "./editorStore";
 
-export const FILTERS: { id: string; name: string; css: string }[] = [
-  { id: "none", name: "Original", css: "" },
-  { id: "vivid", name: "Vivid", css: "saturate(1.6) contrast(1.1)" },
-  { id: "cinema", name: "Cinema", css: "contrast(1.2) saturate(0.85) sepia(0.1)" },
-  { id: "chrome", name: "Chrome", css: "saturate(1.3) contrast(1.15) brightness(1.05)" },
-  { id: "fade", name: "Fade", css: "contrast(0.85) brightness(1.1) saturate(0.8)" },
-  { id: "mono", name: "Mono", css: "grayscale(1) contrast(1.1)" },
-  { id: "noir", name: "Noir", css: "grayscale(1) contrast(1.4) brightness(0.85)" },
-  { id: "warm", name: "Warm", css: "sepia(0.3) saturate(1.2) brightness(1.05)" },
-  { id: "cool", name: "Cool", css: "hue-rotate(15deg) saturate(1.1) brightness(1.05)" },
-  { id: "golden", name: "Golden", css: "sepia(0.5) saturate(1.4) brightness(1.1) contrast(1.05)" },
-  { id: "matte", name: "Matte", css: "contrast(0.9) brightness(1.05) saturate(0.9)" },
-  { id: "lush", name: "Lush", css: "saturate(1.8) brightness(1.05) contrast(1.05)" },
-  { id: "haze", name: "Haze", css: "brightness(1.15) contrast(0.85) saturate(0.75)" },
-  { id: "punch", name: "Punch", css: "contrast(1.3) saturate(1.5)" },
-  { id: "dreamy", name: "Dreamy", css: "brightness(1.1) contrast(0.9) saturate(0.9) blur(0.5px)" },
-  { id: "vintage", name: "Vintage", css: "sepia(0.4) contrast(1.1) brightness(0.9) saturate(1.2)" },
-  { id: "arctic", name: "Arctic", css: "hue-rotate(180deg) saturate(0.5) brightness(1.3)" },
-  { id: "summer", name: "Summer", css: "hue-rotate(-10deg) saturate(1.4) brightness(1.1)" },
-  { id: "forest", name: "Forest", css: "hue-rotate(30deg) saturate(1.3) brightness(0.95)" },
-  { id: "neon", name: "Neon", css: "saturate(2) contrast(1.2) brightness(1.1)" },
+export const FILTERS: { id: string; name: string; css: string; category: string }[] = [
+  { id: "none", name: "Original", css: "", category: "basic" },
+  { id: "vivid", name: "Vivid", css: "saturate(1.6) contrast(1.1)", category: "basic" },
+  { id: "cinema", name: "Cinema", css: "contrast(1.2) saturate(0.85) sepia(0.1)", category: "cinematic" },
+  { id: "chrome", name: "Chrome", css: "saturate(1.3) contrast(1.15) brightness(1.05)", category: "basic" },
+  { id: "fade", name: "Fade", css: "contrast(0.85) brightness(1.1) saturate(0.8)", category: "basic" },
+  { id: "mono", name: "Mono", css: "grayscale(1) contrast(1.1)", category: "black-white" },
+  { id: "noir", name: "Noir", css: "grayscale(1) contrast(1.4) brightness(0.85)", category: "black-white" },
+  { id: "warm", name: "Warm", css: "sepia(0.3) saturate(1.2) brightness(1.05)", category: "basic" },
+  { id: "cool", name: "Cool", css: "hue-rotate(15deg) saturate(1.1) brightness(1.05)", category: "basic" },
+  { id: "golden", name: "Golden Hour", css: "sepia(0.5) saturate(1.4) brightness(1.1) contrast(1.05)", category: "cinematic" },
+  { id: "matte", name: "Matte", css: "contrast(0.9) brightness(1.05) saturate(0.9)", category: "cinematic" },
+  { id: "lush", name: "Lush", css: "saturate(1.8) brightness(1.05) contrast(1.05)", category: "basic" },
+  { id: "haze", name: "Haze", css: "brightness(1.15) contrast(0.85) saturate(0.75)", category: "cinematic" },
+  { id: "punch", name: "Punch", css: "contrast(1.3) saturate(1.5)", category: "basic" },
+  { id: "dreamy", name: "Dreamy", css: "brightness(1.1) contrast(0.9) saturate(0.9) blur(0.5px)", category: "artistic" },
+  { id: "vintage", name: "Vintage", css: "sepia(0.4) contrast(1.1) brightness(0.9) saturate(1.2)", category: "retro" },
+  { id: "arctic", name: "Arctic", css: "hue-rotate(180deg) saturate(0.5) brightness(1.3)", category: "artistic" },
+  { id: "summer", name: "Summer", css: "hue-rotate(-10deg) saturate(1.4) brightness(1.1)", category: "basic" },
+  { id: "forest", name: "Forest", css: "hue-rotate(30deg) saturate(1.3) brightness(0.95)", category: "nature" },
+  { id: "neon", name: "Neon", css: "saturate(2) contrast(1.2) brightness(1.1)", category: "artistic" },
+  { id: "blueprint", name: "Blueprint", css: "hue-rotate(200deg) saturate(1.5) contrast(1.2)", category: "artistic" },
+  { id: "sunset", name: "Sunset", css: "sepia(0.6) saturate(1.6) hue-rotate(-15deg) brightness(1.05)", category: "cinematic" },
+  { id: "tokyo", name: "Tokyo", css: "hue-rotate(320deg) saturate(1.4) contrast(1.1)", category: "cinematic" },
+  { id: "portra", name: "Portra", css: "sepia(0.2) saturate(1.1) brightness(1.08) contrast(0.95)", category: "film" },
+  { id: "velvia", name: "Velvia", css: "saturate(1.7) contrast(1.15) brightness(0.95)", category: "film" },
+  { id: "provia", name: "Provia", css: "saturate(1.2) contrast(1.05) brightness(1.02)", category: "film" },
+  { id: "hp5", name: "HP5", css: "grayscale(1) contrast(1.2) brightness(0.95)", category: "film" },
+  { id: "trixX", name: "Tri-X", css: "grayscale(1) contrast(1.5) brightness(0.85)", category: "film" },
+  { id: "ektar", name: "Ektar", css: "saturate(1.5) contrast(1.1) brightness(1.02) hue-rotate(-5deg)", category: "film" },
+  { id: "crossProcess", name: "Cross Process", css: "saturate(1.6) contrast(1.3) hue-rotate(20deg)", category: "retro" },
+  { id: "lomography", name: "Lomography", css: "contrast(1.2) saturate(1.4) brightness(0.9)", category: "retro" },
+  { id: "cyberpunk", name: "Cyberpunk", css: "hue-rotate(280deg) saturate(1.8) contrast(1.3) brightness(1.1)", category: "artistic" },
+  { id: "matrix", name: "Matrix", css: "hue-rotate(90deg) saturate(1.5) contrast(1.2) brightness(0.9)", category: "artistic" },
+  { id: "pastel", name: "Pastel", css: "saturate(0.7) brightness(1.15) contrast(0.85)", category: "artistic" },
+];
+
+export const LUT_PRESETS = [
+  { id: "none", name: "None", gradient: "from-gray-700 to-gray-500" },
+  { id: "cinematic", name: "Cinematic", gradient: "from-blue-900 to-orange-700" },
+  { id: "teal-orange", name: "Teal & Orange", gradient: "from-teal-600 to-orange-500" },
+  { id: "morning-mist", name: "Morning Mist", gradient: "from-blue-200 to-purple-300" },
+  { id: "golden-hour", name: "Golden Hour", gradient: "from-yellow-400 to-orange-600" },
+  { id: "bleach-bypass", name: "Bleach Bypass", gradient: "from-gray-500 to-yellow-700" },
+  { id: "cross-process", name: "Cross Process", gradient: "from-green-600 to-pink-500" },
+  { id: "fuji-velvia", name: "Fuji Velvia", gradient: "from-green-700 to-red-600" },
+  { id: "kodak-portra", name: "Kodak Portra", gradient: "from-amber-200 to-orange-400" },
+  { id: "neon-noir", name: "Neon Noir", gradient: "from-purple-900 to-pink-500" },
+  { id: "arctic", name: "Arctic Blue", gradient: "from-blue-300 to-cyan-500" },
+  { id: "sunset-strip", name: "Sunset Strip", gradient: "from-red-500 to-purple-700" },
 ];
 
 export function buildFilterCSS(adj: Adjustments, selectedFilter: string): string {
@@ -87,21 +116,62 @@ export const RESOLUTIONS = [
   { label: "Square (1080x1080)", width: 1080, height: 1080 },
   { label: "Portrait (1080x1350)", width: 1080, height: 1350 },
   { label: "Story (1080x1920)", width: 1080, height: 1920 },
-  { label: "Cinematic 2.39:1", width: 2048, height: 858 },
+  { label: "Cinematic (2048x858)", width: 2048, height: 858 },
+  { label: "Banner (1500x500)", width: 1500, height: 500 },
 ];
 
-export const LUT_PRESETS = [
-  "None", "Cinematic", "Teal & Orange", "Morning Mist", "Golden Hour",
-  "Bleach Bypass", "Cross Process", "Fuji Velvia", "Kodak Portra", "Neon Noir",
+export const ASPECT_RATIOS = [
+  { label: "Free", value: "free" },
+  { label: "Original", value: "original" },
+  { label: "1:1", value: "1:1" },
+  { label: "4:3", value: "4:3" },
+  { label: "3:2", value: "3:2" },
+  { label: "16:9", value: "16:9" },
+  { label: "21:9", value: "21:9" },
+  { label: "5:4", value: "5:4" },
+  { label: "9:16", value: "9:16" },
+  { label: "3:4", value: "3:4" },
 ];
 
 export const TRANSITIONS = [
   "None", "Fade", "Dissolve", "Wipe Left", "Wipe Right", "Slide Up",
-  "Slide Down", "Zoom In", "Zoom Out", "Spin", "Glitch",
+  "Slide Down", "Zoom In", "Zoom Out", "Spin", "Glitch", "Burn", "Dip to Black",
 ];
 
 export const FONTS = [
   "Inter", "Roboto", "Playfair Display", "Montserrat", "Bebas Neue",
   "Comic Sans MS", "Georgia", "Impact", "Arial Black", "Courier New",
   "Dancing Script", "Lobster", "Oswald", "Raleway", "Nunito",
+  "Poppins", "Lato", "Open Sans", "Source Sans Pro", "Merriweather",
+  "Abril Fatface", "Pacifico", "Permanent Marker", "Special Elite", "Cinzel",
+];
+
+export const BLEND_MODES = [
+  "normal", "multiply", "screen", "overlay", "darken", "lighten",
+  "color-dodge", "color-burn", "hard-light", "soft-light", "difference", "exclusion",
+  "hue", "saturation", "color", "luminosity",
+] as const;
+
+export const SHAPES = [
+  { id: "rectangle", label: "Rectangle" },
+  { id: "ellipse", label: "Ellipse" },
+  { id: "triangle", label: "Triangle" },
+  { id: "star", label: "Star" },
+  { id: "heart", label: "Heart" },
+  { id: "arrow", label: "Arrow" },
+  { id: "line", label: "Line" },
+  { id: "diamond", label: "Diamond" },
+];
+
+export const AI_TOOLS = [
+  { id: "remove-bg", label: "Remove Background", icon: "✂️", desc: "Automatically remove image background" },
+  { id: "enhance", label: "AI Enhance", icon: "✨", desc: "Upscale and enhance details" },
+  { id: "denoise", label: "AI Denoise", icon: "🔊", desc: "Remove noise with AI" },
+  { id: "colorize", label: "Colorize", icon: "🎨", desc: "AI colorize black & white photos" },
+  { id: "restore", label: "Restore", icon: "🔄", desc: "Restore old or damaged photos" },
+  { id: "relight", label: "AI Relight", icon: "💡", desc: "Change lighting with AI" },
+  { id: "sky-replace", label: "Sky Replace", icon: "☁️", desc: "Replace the sky automatically" },
+  { id: "portrait-enhance", label: "Portrait Enhance", icon: "👤", desc: "AI face and skin enhancement" },
+  { id: "expand", label: "Expand Image", icon: "↔️", desc: "Generatively expand image boundaries" },
+  { id: "object-remove", label: "Remove Object", icon: "🪄", desc: "Remove unwanted objects" },
 ];
