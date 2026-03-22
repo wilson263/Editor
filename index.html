@@ -1,0 +1,828 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>ProEditor — Professional Photo & Video Editor</title>
+<meta name="description" content="The most powerful browser-based photo and video editor. 8K support, AI tools, color grading, and more." />
+<style>
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --violet: #8b5cf6;
+    --violet-dark: #6d28d9;
+    --violet-light: #a78bfa;
+    --pink: #ec4899;
+    --cyan: #06b6d4;
+    --bg: #05050f;
+    --surface: #0d0d1f;
+    --border: rgba(139,92,246,0.15);
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: #fff;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    overflow-x: hidden;
+  }
+
+  /* ─── INTRO SCREEN ─── */
+  #intro {
+    position: fixed; inset: 0; z-index: 9999;
+    background: #000;
+    display: flex; align-items: center; justify-content: center;
+    flex-direction: column;
+    transition: opacity 0.8s ease, visibility 0.8s ease;
+  }
+  #intro.fade-out { opacity: 0; visibility: hidden; pointer-events: none; }
+
+  #intro-canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+
+  .intro-logo {
+    position: relative; z-index: 2;
+    display: flex; flex-direction: column; align-items: center; gap: 20px;
+    animation: introReveal 1s ease 0.5s both;
+  }
+  .intro-logo-icon {
+    width: 80px; height: 80px; border-radius: 22px;
+    background: linear-gradient(135deg, #8b5cf6, #ec4899);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 36px; font-weight: 900; color: white;
+    box-shadow: 0 0 60px rgba(139,92,246,0.6), 0 0 120px rgba(236,72,153,0.3);
+    animation: logoPulse 2s ease-in-out infinite;
+  }
+  .intro-title {
+    font-size: 48px; font-weight: 800; letter-spacing: -1px;
+    background: linear-gradient(135deg, #fff 0%, #a78bfa 50%, #ec4899 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    text-align: center;
+  }
+  .intro-subtitle {
+    font-size: 16px; color: rgba(255,255,255,0.5);
+    letter-spacing: 4px; text-transform: uppercase; text-align: center;
+  }
+  .intro-progress {
+    width: 200px; height: 2px; background: rgba(255,255,255,0.1); border-radius: 1px;
+    overflow: hidden; margin-top: 40px;
+  }
+  .intro-progress-bar {
+    height: 100%; width: 0%;
+    background: linear-gradient(90deg, #8b5cf6, #ec4899);
+    border-radius: 1px;
+    animation: progressFill 2.5s ease forwards 0.5s;
+  }
+  .intro-skip {
+    position: absolute; bottom: 40px; right: 40px; z-index: 3;
+    background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.15);
+    color: rgba(255,255,255,0.5); padding: 10px 20px; border-radius: 8px;
+    cursor: pointer; font-size: 13px; transition: all 0.2s ease;
+    animation: fadeIn 1s ease 1s both;
+  }
+  .intro-skip:hover { background: rgba(255,255,255,0.12); color: white; }
+
+  @keyframes introReveal {
+    from { opacity: 0; transform: translateY(30px) scale(0.95); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  @keyframes logoPulse {
+    0%, 100% { box-shadow: 0 0 60px rgba(139,92,246,0.6), 0 0 120px rgba(236,72,153,0.3); }
+    50% { box-shadow: 0 0 80px rgba(139,92,246,0.9), 0 0 160px rgba(236,72,153,0.5); }
+  }
+  @keyframes progressFill { to { width: 100%; } }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+  /* ─── MAIN SITE ─── */
+  #site { opacity: 0; transition: opacity 0.8s ease; }
+  #site.visible { opacity: 1; }
+
+  /* NAV */
+  nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 48px;
+    background: rgba(5,5,15,0.8);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid rgba(139,92,246,0.1);
+  }
+  .nav-logo { display: flex; align-items: center; gap: 12px; }
+  .nav-logo-icon {
+    width: 36px; height: 36px; border-radius: 10px;
+    background: linear-gradient(135deg, #8b5cf6, #ec4899);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 900; font-size: 16px;
+  }
+  .nav-logo-text { font-size: 18px; font-weight: 700; }
+  .nav-badge {
+    font-size: 9px; font-weight: 700; background: rgba(139,92,246,0.2);
+    color: var(--violet-light); border: 1px solid rgba(139,92,246,0.3);
+    padding: 2px 6px; border-radius: 4px; letter-spacing: 1px;
+  }
+  .nav-links { display: flex; gap: 32px; }
+  .nav-links a { color: rgba(255,255,255,0.6); text-decoration: none; font-size: 14px; transition: color 0.2s; }
+  .nav-links a:hover { color: white; }
+  .nav-cta {
+    background: linear-gradient(135deg, #8b5cf6, #6d28d9);
+    color: white; border: none; padding: 10px 24px;
+    border-radius: 10px; font-size: 14px; font-weight: 600;
+    cursor: pointer; transition: all 0.2s ease; text-decoration: none;
+    box-shadow: 0 4px 20px rgba(139,92,246,0.4);
+  }
+  .nav-cta:hover { transform: translateY(-1px); box-shadow: 0 6px 30px rgba(139,92,246,0.6); }
+
+  /* HERO */
+  .hero {
+    min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    text-align: center; padding: 120px 24px 80px;
+    position: relative; overflow: hidden;
+  }
+  .hero-bg {
+    position: absolute; inset: 0; z-index: 0;
+    background:
+      radial-gradient(ellipse 80% 60% at 50% 0%, rgba(139,92,246,0.15) 0%, transparent 60%),
+      radial-gradient(ellipse 60% 40% at 80% 80%, rgba(236,72,153,0.08) 0%, transparent 50%),
+      radial-gradient(ellipse 40% 30% at 20% 60%, rgba(6,182,212,0.06) 0%, transparent 50%);
+  }
+  .hero-grid {
+    position: absolute; inset: 0; z-index: 0;
+    background-image:
+      linear-gradient(rgba(139,92,246,0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(139,92,246,0.04) 1px, transparent 1px);
+    background-size: 60px 60px;
+    mask-image: radial-gradient(ellipse 80% 80% at 50% 50%, black 0%, transparent 100%);
+  }
+  .hero-content { position: relative; z-index: 1; max-width: 900px; }
+  .hero-badge {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: rgba(139,92,246,0.1); border: 1px solid rgba(139,92,246,0.3);
+    padding: 6px 16px; border-radius: 100px; font-size: 13px;
+    color: var(--violet-light); margin-bottom: 32px;
+    animation: slideDown 0.6s ease both;
+  }
+  .hero-badge-dot { width: 6px; height: 6px; background: var(--violet); border-radius: 50%; animation: blink 1.5s ease-in-out infinite; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+  @keyframes slideDown { from{opacity:0;transform:translateY(-20px)} to{opacity:1;transform:translateY(0)} }
+
+  .hero-title {
+    font-size: clamp(48px, 8vw, 88px); font-weight: 900;
+    letter-spacing: -3px; line-height: 1.0;
+    margin-bottom: 24px;
+    animation: heroTitle 0.8s ease 0.1s both;
+  }
+  .hero-title .gradient-text {
+    background: linear-gradient(135deg, #a78bfa 0%, #ec4899 50%, #f97316 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  @keyframes heroTitle { from{opacity:0;transform:translateY(30px)} to{opacity:1;transform:translateY(0)} }
+
+  .hero-desc {
+    font-size: 20px; color: rgba(255,255,255,0.55); line-height: 1.7;
+    max-width: 620px; margin: 0 auto 48px;
+    animation: heroTitle 0.8s ease 0.2s both;
+  }
+  .hero-actions {
+    display: flex; gap: 16px; justify-content: center; flex-wrap: wrap;
+    animation: heroTitle 0.8s ease 0.3s both;
+  }
+  .btn-primary {
+    background: linear-gradient(135deg, #8b5cf6, #6d28d9);
+    color: white; border: none; padding: 16px 36px;
+    border-radius: 14px; font-size: 16px; font-weight: 700;
+    cursor: pointer; transition: all 0.2s ease; text-decoration: none;
+    box-shadow: 0 8px 32px rgba(139,92,246,0.4);
+    display: inline-flex; align-items: center; gap: 10px;
+  }
+  .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 12px 48px rgba(139,92,246,0.6); }
+  .btn-secondary {
+    background: rgba(255,255,255,0.05); color: white;
+    border: 1px solid rgba(255,255,255,0.15); padding: 16px 36px;
+    border-radius: 14px; font-size: 16px; font-weight: 600;
+    cursor: pointer; transition: all 0.2s ease; text-decoration: none;
+    display: inline-flex; align-items: center; gap: 10px;
+    backdrop-filter: blur(10px);
+  }
+  .btn-secondary:hover { background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.25); }
+
+  /* STATS */
+  .stats {
+    display: flex; gap: 48px; justify-content: center; flex-wrap: wrap;
+    padding: 48px 24px;
+    border-top: 1px solid rgba(255,255,255,0.05);
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+  }
+  .stat { text-align: center; }
+  .stat-number { font-size: 36px; font-weight: 800; background: linear-gradient(135deg, #a78bfa, #ec4899); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .stat-label { font-size: 13px; color: rgba(255,255,255,0.4); margin-top: 4px; }
+
+  /* EDITOR PREVIEW */
+  .preview-section {
+    padding: 100px 24px; text-align: center; position: relative;
+  }
+  .section-label {
+    font-size: 12px; font-weight: 700; letter-spacing: 4px;
+    text-transform: uppercase; color: var(--violet-light); margin-bottom: 16px;
+  }
+  .section-title {
+    font-size: clamp(32px, 5vw, 56px); font-weight: 800;
+    letter-spacing: -1px; margin-bottom: 16px; line-height: 1.1;
+  }
+  .section-desc { font-size: 18px; color: rgba(255,255,255,0.5); max-width: 560px; margin: 0 auto 60px; }
+
+  .editor-mockup {
+    max-width: 1100px; margin: 0 auto;
+    background: #0d0d1f; border: 1px solid rgba(139,92,246,0.2);
+    border-radius: 20px; overflow: hidden;
+    box-shadow: 0 40px 120px rgba(0,0,0,0.8), 0 0 0 1px rgba(139,92,246,0.1), 0 0 80px rgba(139,92,246,0.1);
+    position: relative;
+  }
+  .editor-mockup::before {
+    content: '';
+    position: absolute; inset: -1px; border-radius: 21px;
+    background: linear-gradient(135deg, rgba(139,92,246,0.3), transparent 50%, rgba(236,72,153,0.2));
+    z-index: -1;
+  }
+  .mockup-topbar {
+    height: 44px; background: #070710; border-bottom: 1px solid rgba(139,92,246,0.1);
+    display: flex; align-items: center; justify-between; padding: 0 16px; gap: 12px;
+  }
+  .mockup-dots { display: flex; gap: 6px; }
+  .mockup-dot { width: 12px; height: 12px; border-radius: 50%; }
+  .mockup-body { display: flex; height: 500px; }
+  .mockup-sidebar { width: 52px; background: #05050f; border-right: 1px solid rgba(139,92,246,0.08); display: flex; flex-direction: column; align-items: center; padding: 12px 0; gap: 4px; }
+  .mockup-tool { width: 36px; height: 36px; border-radius: 8px; background: rgba(255,255,255,0.03); display: flex; align-items: center; justify-content: center; font-size: 14px; cursor: pointer; transition: background 0.15s; }
+  .mockup-tool:hover, .mockup-tool.active { background: rgba(139,92,246,0.2); }
+  .mockup-canvas { flex: 1; background: #0a0a18; display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden; }
+  .canvas-demo {
+    width: 70%; aspect-ratio: 16/10; border-radius: 8px; overflow: hidden; position: relative;
+    box-shadow: 0 0 0 1px rgba(139,92,246,0.2);
+  }
+  .canvas-demo-img {
+    width: 100%; height: 100%;
+    background: linear-gradient(135deg, #1a0533 0%, #0d1a33 30%, #001a1a 60%, #1a000d 100%);
+    position: relative; display: flex; align-items: center; justify-content: center;
+  }
+  .canvas-demo-img::after {
+    content: '';
+    position: absolute; inset: 0;
+    background:
+      radial-gradient(ellipse 60% 80% at 30% 50%, rgba(139,92,246,0.3) 0%, transparent 60%),
+      radial-gradient(ellipse 40% 60% at 70% 40%, rgba(6,182,212,0.2) 0%, transparent 50%),
+      radial-gradient(ellipse 50% 70% at 50% 80%, rgba(236,72,153,0.2) 0%, transparent 50%);
+  }
+  .canvas-demo-text {
+    position: relative; z-index: 1; text-align: center;
+    font-size: 28px; font-weight: 800;
+    background: linear-gradient(135deg, #a78bfa, #ec4899);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .mockup-panel { width: 260px; background: #0d0d1f; border-left: 1px solid rgba(139,92,246,0.08); padding: 16px; overflow: hidden; }
+  .panel-title { font-size: 11px; font-weight: 600; color: rgba(255,255,255,0.8); margin-bottom: 12px; }
+  .panel-section-title { font-size: 9px; text-transform: uppercase; letter-spacing: 2px; color: rgba(255,255,255,0.3); margin: 12px 0 8px; }
+  .slider-row { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; }
+  .slider-labels { display: flex; justify-content: space-between; font-size: 10px; color: rgba(255,255,255,0.4); }
+  .slider-track { height: 3px; background: rgba(255,255,255,0.08); border-radius: 2px; position: relative; }
+  .slider-fill { height: 100%; border-radius: 2px; }
+  .slider-thumb { width: 12px; height: 12px; border-radius: 50%; background: white; position: absolute; top: 50%; transform: translateY(-50%); box-shadow: 0 0 0 2px rgba(139,92,246,0.4); }
+
+  /* FEATURES */
+  .features { padding: 100px 24px; }
+  .features-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; max-width: 1100px; margin: 0 auto; }
+  .feature-card {
+    background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 20px; padding: 32px;
+    transition: all 0.3s ease; position: relative; overflow: hidden;
+  }
+  .feature-card::before {
+    content: ''; position: absolute; inset: 0;
+    background: linear-gradient(135deg, var(--card-color, rgba(139,92,246,0.05)) 0%, transparent 60%);
+    opacity: 0; transition: opacity 0.3s ease; border-radius: inherit;
+  }
+  .feature-card:hover { border-color: rgba(139,92,246,0.3); transform: translateY(-4px); }
+  .feature-card:hover::before { opacity: 1; }
+  .feature-icon { font-size: 36px; margin-bottom: 20px; display: block; }
+  .feature-title { font-size: 20px; font-weight: 700; margin-bottom: 10px; }
+  .feature-desc { font-size: 14px; color: rgba(255,255,255,0.5); line-height: 1.7; }
+  .feature-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 16px; }
+  .feature-tag {
+    font-size: 10px; font-weight: 600; padding: 3px 8px; border-radius: 6px;
+    background: rgba(139,92,246,0.1); color: var(--violet-light);
+    border: 1px solid rgba(139,92,246,0.2);
+  }
+
+  /* AI SECTION */
+  .ai-section {
+    padding: 100px 24px; position: relative; overflow: hidden;
+    background: linear-gradient(180deg, transparent 0%, rgba(139,92,246,0.03) 50%, transparent 100%);
+  }
+  .ai-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 60px; max-width: 1000px; margin: 0 auto; align-items: center; }
+  .ai-list { display: flex; flex-direction: column; gap: 16px; }
+  .ai-item {
+    display: flex; gap: 16px; padding: 20px; border-radius: 16px;
+    background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06);
+    transition: all 0.2s ease;
+  }
+  .ai-item:hover { border-color: rgba(139,92,246,0.3); background: rgba(139,92,246,0.05); }
+  .ai-item-icon {
+    width: 44px; height: 44px; border-radius: 12px; shrink: 0;
+    background: linear-gradient(135deg, rgba(139,92,246,0.2), rgba(236,72,153,0.1));
+    display: flex; align-items: center; justify-content: center; font-size: 20px;
+    flex-shrink: 0; border: 1px solid rgba(139,92,246,0.2);
+  }
+  .ai-item-title { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+  .ai-item-desc { font-size: 13px; color: rgba(255,255,255,0.45); line-height: 1.5; }
+  .ai-visual {
+    background: rgba(255,255,255,0.02); border: 1px solid rgba(139,92,246,0.15);
+    border-radius: 24px; padding: 32px; text-align: center;
+    position: relative; overflow: hidden;
+  }
+  .ai-visual-bg {
+    position: absolute; inset: 0;
+    background: radial-gradient(ellipse 80% 80% at 50% 50%, rgba(139,92,246,0.08) 0%, transparent 70%);
+  }
+  .ai-orb {
+    width: 120px; height: 120px; border-radius: 50%; margin: 0 auto 24px;
+    background: conic-gradient(from 0deg, #8b5cf6, #ec4899, #06b6d4, #8b5cf6);
+    display: flex; align-items: center; justify-content: center;
+    animation: orbSpin 8s linear infinite;
+    box-shadow: 0 0 60px rgba(139,92,246,0.5);
+    position: relative; z-index: 1;
+  }
+  .ai-orb-inner { width: 90px; height: 90px; border-radius: 50%; background: #0d0d1f; display: flex; align-items: center; justify-content: center; font-size: 36px; }
+  @keyframes orbSpin { to { transform: rotate(360deg); } }
+  .ai-visual-title { font-size: 20px; font-weight: 800; margin-bottom: 8px; position: relative; z-index: 1; }
+  .ai-visual-desc { font-size: 13px; color: rgba(255,255,255,0.4); position: relative; z-index: 1; }
+  .ai-chips { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 20px; position: relative; z-index: 1; }
+  .ai-chip {
+    font-size: 11px; padding: 5px 12px; border-radius: 100px;
+    background: rgba(139,92,246,0.1); border: 1px solid rgba(139,92,246,0.25);
+    color: var(--violet-light); font-weight: 600;
+  }
+
+  /* CTA */
+  .cta-section {
+    padding: 120px 24px; text-align: center; position: relative; overflow: hidden;
+  }
+  .cta-bg {
+    position: absolute; inset: 0;
+    background: radial-gradient(ellipse 80% 60% at 50% 50%, rgba(139,92,246,0.12) 0%, transparent 70%);
+  }
+  .cta-content { position: relative; z-index: 1; }
+  .cta-title { font-size: clamp(36px, 6vw, 64px); font-weight: 900; letter-spacing: -2px; margin-bottom: 20px; }
+  .cta-desc { font-size: 18px; color: rgba(255,255,255,0.5); margin-bottom: 48px; }
+  .cta-actions { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }
+
+  /* FOOTER */
+  footer {
+    border-top: 1px solid rgba(255,255,255,0.05);
+    padding: 48px 48px; display: flex; justify-content: space-between; align-items: center; flex-wrap: gap;
+    color: rgba(255,255,255,0.3); font-size: 14px;
+  }
+  .footer-logo { display: flex; align-items: center; gap: 10px; }
+  .footer-logo-icon {
+    width: 28px; height: 28px; border-radius: 8px;
+    background: linear-gradient(135deg, #8b5cf6, #ec4899);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 900; font-size: 12px; color: white;
+  }
+
+  /* FLOATING PARTICLES */
+  .particles { position: fixed; inset: 0; z-index: -1; pointer-events: none; }
+  .particle {
+    position: absolute; border-radius: 50%;
+    animation: float linear infinite;
+    opacity: 0;
+  }
+  @keyframes float {
+    0% { opacity: 0; transform: translateY(100vh) scale(0); }
+    10% { opacity: 1; }
+    90% { opacity: 0.5; }
+    100% { opacity: 0; transform: translateY(-100px) scale(1); }
+  }
+
+  /* RESPONSIVE */
+  @media (max-width: 768px) {
+    nav { padding: 12px 20px; }
+    .nav-links { display: none; }
+    .ai-grid { grid-template-columns: 1fr; }
+    footer { flex-direction: column; gap: 16px; text-align: center; }
+  }
+</style>
+</head>
+<body>
+
+<!-- INTRO SCREEN -->
+<div id="intro">
+  <canvas id="intro-canvas"></canvas>
+  <div class="intro-logo">
+    <div class="intro-logo-icon">P</div>
+    <div class="intro-title">ProEditor</div>
+    <div class="intro-subtitle">Professional Photo &amp; Video Editing</div>
+    <div class="intro-progress"><div class="intro-progress-bar"></div></div>
+  </div>
+  <button class="intro-skip" onclick="skipIntro()">Skip ›</button>
+</div>
+
+<!-- PARTICLES -->
+<div class="particles" id="particles"></div>
+
+<!-- MAIN SITE -->
+<div id="site">
+
+  <!-- NAV -->
+  <nav>
+    <div class="nav-logo">
+      <div class="nav-logo-icon">P</div>
+      <span class="nav-logo-text">ProEditor</span>
+      <span class="nav-badge">PRO</span>
+    </div>
+    <div class="nav-links">
+      <a href="#features">Features</a>
+      <a href="#ai">AI Tools</a>
+      <a href="#editor">Editor</a>
+    </div>
+    <a href="#editor" class="nav-cta">Launch Editor →</a>
+  </nav>
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="hero-bg"></div>
+    <div class="hero-grid"></div>
+    <div class="hero-content">
+      <div class="hero-badge">
+        <span class="hero-badge-dot"></span>
+        Now with 8K Resolution &amp; AI Tools
+      </div>
+      <h1 class="hero-title">
+        Edit Like a<br/>
+        <span class="gradient-text">Professional.</span>
+      </h1>
+      <p class="hero-desc">
+        The most powerful browser-based photo and video editor. AI-powered tools,
+        color grading, 8K support, and everything you need to create stunning visuals.
+      </p>
+      <div class="hero-actions">
+        <a href="#editor" class="btn-primary">
+          <span>🚀</span> Start Editing Free
+        </a>
+        <a href="#features" class="btn-secondary">
+          <span>▶</span> See Features
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- STATS -->
+  <div class="stats">
+    <div class="stat"><div class="stat-number">8K</div><div class="stat-label">Max Resolution</div></div>
+    <div class="stat"><div class="stat-number">50+</div><div class="stat-label">Pro Tools</div></div>
+    <div class="stat"><div class="stat-number">20+</div><div class="stat-label">Filters & LUTs</div></div>
+    <div class="stat"><div class="stat-number">AI</div><div class="stat-label">Powered Editing</div></div>
+    <div class="stat"><div class="stat-number">∞</div><div class="stat-label">Layers</div></div>
+  </div>
+
+  <!-- EDITOR PREVIEW -->
+  <section class="preview-section" id="editor">
+    <div class="section-label">Live Preview</div>
+    <h2 class="section-title">A <span style="background:linear-gradient(135deg,#a78bfa,#ec4899);-webkit-background-clip:text;-webkit-text-fill-color:transparent">Studio-Grade</span> Editor</h2>
+    <p class="section-desc">Everything you need in one place — built for photographers, filmmakers, and creators.</p>
+
+    <div class="editor-mockup">
+      <div class="mockup-topbar">
+        <div class="mockup-dots">
+          <div class="mockup-dot" style="background:#ff5f57"></div>
+          <div class="mockup-dot" style="background:#febc2e"></div>
+          <div class="mockup-dot" style="background:#28c840"></div>
+        </div>
+        <div style="flex:1;text-align:center;font-size:12px;color:rgba(255,255,255,0.3)">ProEditor — Professional Photo &amp; Video Editor</div>
+      </div>
+      <div class="mockup-body">
+        <div class="mockup-sidebar">
+          <div class="mockup-tool active">↖</div>
+          <div class="mockup-tool">✂</div>
+          <div class="mockup-tool">🖌</div>
+          <div class="mockup-tool">T</div>
+          <div class="mockup-tool">■</div>
+          <div style="width:24px;height:1px;background:rgba(255,255,255,0.06);margin:4px 0"></div>
+          <div class="mockup-tool">⚡</div>
+          <div class="mockup-tool">🤖</div>
+        </div>
+        <div class="mockup-canvas">
+          <div class="canvas-demo">
+            <div class="canvas-demo-img">
+              <div class="canvas-demo-text">8K Canvas Ready</div>
+            </div>
+          </div>
+        </div>
+        <div class="mockup-panel">
+          <div class="panel-title">Adjustments</div>
+          <div class="panel-section-title">LIGHT</div>
+          <div class="slider-row">
+            <div class="slider-labels"><span>Exposure</span><span>+0.3</span></div>
+            <div class="slider-track"><div class="slider-fill" style="width:55%;background:linear-gradient(90deg,#8b5cf6,#a78bfa)"></div><div class="slider-thumb" style="left:55%"></div></div>
+          </div>
+          <div class="slider-row">
+            <div class="slider-labels"><span>Contrast</span><span>+15</span></div>
+            <div class="slider-track"><div class="slider-fill" style="width:65%;background:linear-gradient(90deg,#8b5cf6,#a78bfa)"></div><div class="slider-thumb" style="left:65%"></div></div>
+          </div>
+          <div class="slider-row">
+            <div class="slider-labels"><span>Highlights</span><span>-20</span></div>
+            <div class="slider-track"><div class="slider-fill" style="width:40%;background:linear-gradient(90deg,#8b5cf6,#ec4899)"></div><div class="slider-thumb" style="left:40%"></div></div>
+          </div>
+          <div class="slider-row">
+            <div class="slider-labels"><span>Shadows</span><span>+10</span></div>
+            <div class="slider-track"><div class="slider-fill" style="width:60%;background:linear-gradient(90deg,#6d28d9,#8b5cf6)"></div><div class="slider-thumb" style="left:60%"></div></div>
+          </div>
+          <div class="panel-section-title">COLOR</div>
+          <div class="slider-row">
+            <div class="slider-labels"><span>Saturation</span><span>+25</span></div>
+            <div class="slider-track"><div class="slider-fill" style="width:75%;background:linear-gradient(90deg,#ec4899,#f97316)"></div><div class="slider-thumb" style="left:75%"></div></div>
+          </div>
+          <div class="slider-row">
+            <div class="slider-labels"><span>Temperature</span><span>+8</span></div>
+            <div class="slider-track"><div class="slider-fill" style="width:58%;background:linear-gradient(90deg,#06b6d4,#f59e0b)"></div><div class="slider-thumb" style="left:58%"></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FEATURES -->
+  <section class="features" id="features">
+    <div style="text-align:center;margin-bottom:60px">
+      <div class="section-label">Capabilities</div>
+      <h2 class="section-title">Every Tool You Need</h2>
+      <p class="section-desc">From basic adjustments to advanced professional features — all in your browser.</p>
+    </div>
+    <div class="features-grid">
+      <div class="feature-card" style="--card-color:rgba(139,92,246,0.08)">
+        <span class="feature-icon">📸</span>
+        <div class="feature-title">Professional Photo Editing</div>
+        <div class="feature-desc">Crop, resize, rotate, flip. Full adjustment panel with exposure, brightness, contrast, highlights, shadows, and more.</div>
+        <div class="feature-tags">
+          <span class="feature-tag">RAW Support</span>
+          <span class="feature-tag">8K Export</span>
+          <span class="feature-tag">Lossless</span>
+        </div>
+      </div>
+      <div class="feature-card" style="--card-color:rgba(236,72,153,0.06)">
+        <span class="feature-icon">🎬</span>
+        <div class="feature-title">Advanced Video Editing</div>
+        <div class="feature-desc">Multi-track timeline, trim/cut/split/merge clips, speed control, transitions, keyframe animations, and audio mixing.</div>
+        <div class="feature-tags">
+          <span class="feature-tag">Multi-Track</span>
+          <span class="feature-tag">Keyframes</span>
+          <span class="feature-tag">4K/8K</span>
+        </div>
+      </div>
+      <div class="feature-card" style="--card-color:rgba(6,182,212,0.06)">
+        <span class="feature-icon">🎨</span>
+        <div class="feature-title">Color Grading</div>
+        <div class="feature-desc">Tone curves, HSL color mixing, cinematic LUTs, color wheels for shadows/midtones/highlights, and RAW color processing.</div>
+        <div class="feature-tags">
+          <span class="feature-tag">Tone Curves</span>
+          <span class="feature-tag">HSL</span>
+          <span class="feature-tag">LUTs</span>
+        </div>
+      </div>
+      <div class="feature-card" style="--card-color:rgba(249,115,22,0.06)">
+        <span class="feature-icon">✨</span>
+        <div class="feature-title">Filters & Presets</div>
+        <div class="feature-desc">20+ professional filters including cinematic, vintage, noir, warm, cool, and more. Create and save custom presets.</div>
+        <div class="feature-tags">
+          <span class="feature-tag">20+ Filters</span>
+          <span class="feature-tag">Presets</span>
+          <span class="feature-tag">Instagram-Style</span>
+        </div>
+      </div>
+      <div class="feature-card" style="--card-color:rgba(139,92,246,0.08)">
+        <span class="feature-icon">⬛</span>
+        <div class="feature-title">Layers & Blending</div>
+        <div class="feature-desc">Full layer system with 12 blend modes, opacity control, visibility toggle, and layer ordering — just like Photoshop.</div>
+        <div class="feature-tags">
+          <span class="feature-tag">12 Blend Modes</span>
+          <span class="feature-tag">Opacity</span>
+          <span class="feature-tag">Non-Destructive</span>
+        </div>
+      </div>
+      <div class="feature-card" style="--card-color:rgba(236,72,153,0.06)">
+        <span class="feature-icon">🖋</span>
+        <div class="feature-title">Text & Typography</div>
+        <div class="feature-desc">Rich text editor with 15+ fonts, size, color, alignment, letter spacing, shadows, outlines, and blend modes.</div>
+        <div class="feature-tags">
+          <span class="feature-tag">15+ Fonts</span>
+          <span class="feature-tag">Shadows</span>
+          <span class="feature-tag">Outlines</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- AI SECTION -->
+  <section class="ai-section" id="ai">
+    <div style="text-align:center;margin-bottom:60px">
+      <div class="section-label">Artificial Intelligence</div>
+      <h2 class="section-title">AI-Powered <span style="background:linear-gradient(135deg,#a78bfa,#ec4899);-webkit-background-clip:text;-webkit-text-fill-color:transparent">Magic</span></h2>
+      <p class="section-desc">Machine learning tools that do the heavy lifting for you.</p>
+    </div>
+    <div class="ai-grid">
+      <div class="ai-list">
+        <div class="ai-item">
+          <div class="ai-item-icon">✂️</div>
+          <div><div class="ai-item-title">AI Background Remover</div><div class="ai-item-desc">Remove backgrounds from photos and videos with one click — works for people, objects, and complex scenes.</div></div>
+        </div>
+        <div class="ai-item">
+          <div class="ai-item-icon">⚡</div>
+          <div><div class="ai-item-title">Auto Enhance</div><div class="ai-item-desc">One tap gives your photo a professional look — AI adjusts color, sharpness, and lighting automatically.</div></div>
+        </div>
+        <div class="ai-item">
+          <div class="ai-item-icon">👤</div>
+          <div><div class="ai-item-title">Face Retouch & Beauty</div><div class="ai-item-desc">Smooth skin, remove blemishes, enhance eyes and lips with AI-powered face detection.</div></div>
+        </div>
+        <div class="ai-item">
+          <div class="ai-item-icon">🪄</div>
+          <div><div class="ai-item-title">Object Removal & Replace</div><div class="ai-item-desc">Paint over any object to erase it. AI intelligently fills in the background like magic.</div></div>
+        </div>
+        <div class="ai-item">
+          <div class="ai-item-icon">🔍</div>
+          <div><div class="ai-item-title">AI Upscale to 8K</div><div class="ai-item-desc">Super-resolution AI upscales any photo to 8K while preserving and enhancing detail.</div></div>
+        </div>
+      </div>
+      <div class="ai-visual">
+        <div class="ai-visual-bg"></div>
+        <div class="ai-orb"><div class="ai-orb-inner">🤖</div></div>
+        <div class="ai-visual-title">AI Engine</div>
+        <div class="ai-visual-desc">Powered by advanced machine learning models running entirely in your browser — no data leaves your device.</div>
+        <div class="ai-chips">
+          <span class="ai-chip">Background Removal</span>
+          <span class="ai-chip">Face Detection</span>
+          <span class="ai-chip">Super Resolution</span>
+          <span class="ai-chip">Object Segmentation</span>
+          <span class="ai-chip">Auto Color</span>
+          <span class="ai-chip">Noise Reduction</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section class="cta-section">
+    <div class="cta-bg"></div>
+    <div class="cta-content">
+      <h2 class="cta-title">Ready to create<br/><span style="background:linear-gradient(135deg,#a78bfa,#ec4899,#f97316);-webkit-background-clip:text;-webkit-text-fill-color:transparent">something amazing?</span></h2>
+      <p class="cta-desc">Join creators who use ProEditor to make professional-grade photos and videos.</p>
+      <div class="cta-actions">
+        <a href="./artifacts/pro-editor/" class="btn-primary">🚀 Launch ProEditor — It's Free</a>
+        <a href="#features" class="btn-secondary">📖 Learn More</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer>
+    <div class="footer-logo">
+      <div class="footer-logo-icon">P</div>
+      <span style="color:rgba(255,255,255,0.6);font-weight:600">ProEditor</span>
+      <span style="font-size:11px;color:rgba(255,255,255,0.2)">— Professional Photo &amp; Video Editor</span>
+    </div>
+    <div>© 2026 ProEditor · Built with ❤️ · 8K Ready</div>
+  </footer>
+</div>
+
+<script>
+// ─── INTRO CANVAS ANIMATION ───
+const canvas = document.getElementById('intro-canvas');
+const ctx = canvas.getContext('2d');
+let W, H, particles = [], animFrame;
+
+function resize() {
+  W = canvas.width = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+}
+resize();
+window.addEventListener('resize', resize);
+
+class Particle {
+  constructor() { this.reset(); }
+  reset() {
+    this.x = Math.random() * W;
+    this.y = Math.random() * H;
+    this.vx = (Math.random() - 0.5) * 0.5;
+    this.vy = (Math.random() - 0.5) * 0.5;
+    this.r = Math.random() * 2 + 0.5;
+    this.alpha = Math.random() * 0.6 + 0.1;
+    this.color = ['#8b5cf6','#ec4899','#06b6d4','#a78bfa','#f97316'][Math.floor(Math.random() * 5)];
+  }
+  update() {
+    this.x += this.vx; this.y += this.vy;
+    if (this.x < 0 || this.x > W || this.y < 0 || this.y > H) this.reset();
+  }
+  draw() {
+    ctx.save();
+    ctx.globalAlpha = this.alpha;
+    ctx.fillStyle = this.color;
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+}
+
+for (let i = 0; i < 120; i++) particles.push(new Particle());
+
+let rings = [{r:0, alpha:0.6}, {r:0, alpha:0.4}, {r:0, alpha:0.2}];
+let ringTimer = 0;
+
+function drawIntro() {
+  ctx.clearRect(0, 0, W, H);
+
+  // Deep space BG
+  const grad = ctx.createRadialGradient(W/2, H/2, 0, W/2, H/2, Math.max(W,H) * 0.7);
+  grad.addColorStop(0, '#0a0020');
+  grad.addColorStop(0.5, '#050010');
+  grad.addColorStop(1, '#000000');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, W, H);
+
+  // Nebula glow
+  const nebula1 = ctx.createRadialGradient(W*0.3, H*0.4, 0, W*0.3, H*0.4, W*0.3);
+  nebula1.addColorStop(0, 'rgba(139,92,246,0.12)');
+  nebula1.addColorStop(1, 'transparent');
+  ctx.fillStyle = nebula1; ctx.fillRect(0,0,W,H);
+
+  const nebula2 = ctx.createRadialGradient(W*0.7, H*0.6, 0, W*0.7, H*0.6, W*0.25);
+  nebula2.addColorStop(0, 'rgba(236,72,153,0.08)');
+  nebula2.addColorStop(1, 'transparent');
+  ctx.fillStyle = nebula2; ctx.fillRect(0,0,W,H);
+
+  // Particles
+  particles.forEach(p => { p.update(); p.draw(); });
+
+  // Rings emanating from center
+  ringTimer++;
+  if (ringTimer % 60 === 0) rings.unshift({r:0, alpha:0.5});
+  rings = rings.filter(ring => ring.alpha > 0);
+  rings.forEach(ring => {
+    ring.r += 2;
+    ring.alpha -= 0.003;
+    ctx.save();
+    ctx.globalAlpha = Math.max(0, ring.alpha);
+    ctx.strokeStyle = '#8b5cf6';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.arc(W/2, H/2, ring.r, 0, Math.PI*2);
+    ctx.stroke();
+    ctx.restore();
+  });
+
+  animFrame = requestAnimationFrame(drawIntro);
+}
+drawIntro();
+
+// Auto-dismiss intro after 3.5s
+const introDismiss = setTimeout(() => dismissIntro(), 3500);
+
+function skipIntro() {
+  clearTimeout(introDismiss);
+  dismissIntro();
+}
+
+function dismissIntro() {
+  cancelAnimationFrame(animFrame);
+  document.getElementById('intro').classList.add('fade-out');
+  document.getElementById('site').classList.add('visible');
+  setTimeout(() => {
+    document.getElementById('intro').style.display = 'none';
+  }, 800);
+}
+
+// ─── FLOATING PARTICLES ───
+const pcont = document.getElementById('particles');
+for (let i = 0; i < 20; i++) {
+  const p = document.createElement('div');
+  p.className = 'particle';
+  const size = Math.random() * 4 + 1;
+  const colors = ['rgba(139,92,246,0.4)','rgba(236,72,153,0.3)','rgba(6,182,212,0.3)','rgba(249,115,22,0.3)'];
+  p.style.cssText = `
+    width:${size}px; height:${size}px;
+    left:${Math.random()*100}%;
+    background:${colors[Math.floor(Math.random()*colors.length)]};
+    animation-duration:${10 + Math.random()*20}s;
+    animation-delay:${-Math.random()*20}s;
+  `;
+  pcont.appendChild(p);
+}
+
+// ─── INTERSECTION OBSERVER ───
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      e.target.style.animation = 'heroTitle 0.7s ease both';
+    }
+  });
+}, { threshold: 0.1 });
+document.querySelectorAll('.feature-card, .ai-item').forEach(el => observer.observe(el));
+</script>
+</body>
+</html>
