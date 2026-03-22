@@ -1,7 +1,7 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
 import { useEditorStore } from '@/lib/editorStore';
 import { buildCanvasFilter, applyPixelAdjustments, applyVignette } from '@/lib/imageUtils';
-import { ZoomIn, ZoomOut, Maximize2 } from 'lucide-react';
+import { ZoomIn, ZoomOut, Maximize2, Pipette, X } from 'lucide-react';
 
 export default function PhotoCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -14,11 +14,21 @@ export default function PhotoCanvas() {
   const lastPos = useRef<{ x: number; y: number } | null>(null);
   const renderTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Crop state
+  const [isCropDragging, setIsCropDragging] = useState(false);
+  const [cropStart, setCropStart] = useState<{x:number;y:number}|null>(null);
+  const [cropRect, setCropRect] = useState<{x:number;y:number;w:number;h:number}|null>(null);
+  const cropCanvasRef = useRef<HTMLCanvasElement>(null);
+
+  // Eyedropper state
+  const [eyedropperPreview, setEyedropperPreview] = useState<{x:number;y:number;color:string}|null>(null);
+
   const {
     sourceImage, adjustments, selectedFilter, zoom, setZoom,
     activeTool, layers, brushSize, brushColor, brushOpacity, brushHardness,
     showGrid, showRulers, showBeforeAfter, filterOpacity, setSourceImage,
-    addLayer, curvePoints, panOffset,
+    addLayer, curvePoints, panOffset, setSampleColor, setBrushColor,
+    setActivePanel, setActiveTool, brushFlow,
   } = useEditorStore();
 
   const redraw = useCallback(() => {
@@ -47,14 +57,18 @@ export default function PhotoCanvas() {
         for (const layer of layers.filter((l) => l.visible)) {
           if (layer.type === 'image' && layer.data) {
             const lImg = new Image();
-            lImg.onload = () => {
-              ctx.globalAlpha = layer.opacity / 100;
-              ctx.globalCompositeOperation = layer.blendMode as GlobalCompositeOperation;
-              ctx.drawImage(lImg, 0, 0, canvas.width, canvas.height);
-              ctx.globalAlpha = 1;
-              ctx.globalCompositeOperation = 'source-over';
-            };
-            lImg.src = layer.data;
+            await new Promise<void>((resolve) => {
+              lImg.onload = () => {
+                ctx.globalAlpha = layer.opacity / 100;
+                ctx.globalCompositeOperation = layer.blendMode as GlobalCompositeOperation;
+                ctx.drawImage(lImg, 0, 0, canvas.width, canvas.height);
+                ctx.globalAlpha = 1;
+                ctx.globalCompositeOperation = 'source-over';
+                resolve();
+              };
+              lImg.onerror = () => resolve();
+              lImg.src = layer.data!;
+            });
           }
           if (layer.type === 'text' && layer.textStyle && layer.text) {
             const ts = layer.textStyle;
@@ -79,7 +93,7 @@ export default function PhotoCanvas() {
 
   useEffect(() => { redraw(); }, [redraw]);
 
-  function getCanvasPos(e: React.MouseEvent<HTMLCanvasElement>) {
+  function getCanvasPos(e: React.MouseEvent<HTMLCanvasElement | HTMLDivElement>) {
     const canvas = canvasRef.current;
     if (!canvas) return { x: 0, y: 0 };
     const rect = canvas.getBoundingClientRect();
@@ -88,14 +102,67 @@ export default function PhotoCanvas() {
     return { x: (e.clientX - rect.left) * scaleX, y: (e.clientY - rect.top) * scaleY };
   }
 
+  function getDisplayPos(e: React.MouseEvent<HTMLCanvasElement | HTMLDivElement>) {
+    const canvas = canvasRef.current;
+    if (!canvas) return { x: 0, y: 0 };
+    const rect = canvas.getBoundingClientRect();
+    return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+  }
+
+  function samplePixelColor(e: React.MouseEvent<HTMLCanvasElement>) {
+    const canvas = canvasRef.current;
+    if (!canvas) return null;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    if (!ctx) return null;
+    const pos = getCanvasPos(e);
+    const pixel = ctx.getImageData(Math.round(pos.x), Math.round(pos.y), 1, 1).data;
+    const r = pixel[0], g = pixel[1], b = pixel[2];
+    return '#' + [r, g, b].map((v) => v.toString(16).padStart(2, '0')).join('');
+  }
+
   function handleMouseDown(e: React.MouseEvent<HTMLCanvasElement>) {
-    const paintTools = ['brush', 'eraser', 'dodge', 'burn', 'smudge', 'blur-tool', 'sharpen-tool'];
+    const paintTools = ['brush', 'eraser', 'dodge', 'burn', 'smudge', 'blur-tool', 'sharpen-tool', 'heal', 'clone'];
+    if (activeTool === 'eyedropper') {
+      const color = samplePixelColor(e);
+      if (color) {
+        setSampleColor(color);
+        setBrushColor(color);
+        setActivePanel('brush-panel');
+        setEyedropperPreview(null);
+      }
+      return;
+    }
+    if (activeTool === 'crop') {
+      const pos = getCanvasPos(e);
+      setCropStart(pos);
+      setCropRect(null);
+      setIsCropDragging(true);
+      return;
+    }
     if (!paintTools.includes(activeTool)) return;
     setIsPainting(true);
     lastPos.current = getCanvasPos(e);
   }
 
   function handleMouseMove(e: React.MouseEvent<HTMLCanvasElement>) {
+    if (activeTool === 'eyedropper') {
+      const color = samplePixelColor(e);
+      const dpos = getDisplayPos(e);
+      if (color) setEyedropperPreview({ x: dpos.x, y: dpos.y, color });
+      return;
+    }
+
+    if (activeTool === 'crop' && isCropDragging && cropStart) {
+      const pos = getCanvasPos(e);
+      setCropRect({
+        x: Math.min(cropStart.x, pos.x),
+        y: Math.min(cropStart.y, pos.y),
+        w: Math.abs(pos.x - cropStart.x),
+        h: Math.abs(pos.y - cropStart.y),
+      });
+      return;
+    }
+
     if (!isPainting) return;
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -103,33 +170,99 @@ export default function PhotoCanvas() {
     if (!ctx) return;
     const pos = getCanvasPos(e);
     const last = lastPos.current || pos;
+
     ctx.beginPath();
     ctx.moveTo(last.x, last.y);
     ctx.lineTo(pos.x, pos.y);
     ctx.lineWidth = brushSize;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
+
     if (activeTool === 'eraser') {
       ctx.globalCompositeOperation = 'destination-out';
       ctx.strokeStyle = 'rgba(0,0,0,1)';
+      ctx.globalAlpha = (brushOpacity / 100);
     } else if (activeTool === 'dodge') {
       ctx.globalCompositeOperation = 'screen';
-      ctx.strokeStyle = 'rgba(255,255,200,' + ((brushOpacity / 100) * 0.3) + ')';
+      ctx.strokeStyle = `rgba(255,255,200,${(brushOpacity / 100) * 0.25})`;
     } else if (activeTool === 'burn') {
       ctx.globalCompositeOperation = 'multiply';
-      ctx.strokeStyle = 'rgba(0,0,0,' + ((brushOpacity / 100) * 0.3) + ')';
+      ctx.strokeStyle = `rgba(0,0,0,${(brushOpacity / 100) * 0.25})`;
+    } else if (activeTool === 'smudge') {
+      // Smudge: sample from last position and paint with low opacity
+      const sampledData = ctx.getImageData(last.x - brushSize/2, last.y - brushSize/2, brushSize, brushSize);
+      ctx.putImageData(sampledData, pos.x - brushSize/2, pos.y - brushSize/2);
+      lastPos.current = pos;
+      return;
+    } else if (activeTool === 'blur-tool') {
+      // Blur brush: draw semi-transparent overlay using backdrop filter simulation
+      ctx.filter = 'blur(2px)';
+      const region = ctx.getImageData(pos.x - brushSize/2, pos.y - brushSize/2, brushSize, brushSize);
+      ctx.putImageData(region, pos.x - brushSize/2, pos.y - brushSize/2);
+      ctx.filter = 'none';
+      lastPos.current = pos;
+      return;
+    } else if (activeTool === 'sharpen-tool') {
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.strokeStyle = brushColor;
+      ctx.globalAlpha = (brushOpacity / 100) * 0.3;
+    } else if (activeTool === 'heal' || activeTool === 'clone') {
+      // Healing/clone: copy a nearby region
+      ctx.globalCompositeOperation = 'source-over';
+      const offset = 30;
+      const region = ctx.getImageData(pos.x - brushSize/2 + offset, pos.y - brushSize/2 + offset, brushSize, brushSize);
+      ctx.globalAlpha = (brushOpacity / 100) * 0.8;
+      ctx.putImageData(region, pos.x - brushSize/2, pos.y - brushSize/2);
+      ctx.globalAlpha = 1;
+      lastPos.current = pos;
+      return;
     } else {
       ctx.globalCompositeOperation = 'source-over';
       ctx.strokeStyle = brushColor;
-      ctx.globalAlpha = brushOpacity / 100;
+      ctx.globalAlpha = (brushOpacity / 100) * (brushFlow / 100);
     }
     ctx.stroke();
     ctx.globalCompositeOperation = 'source-over';
     ctx.globalAlpha = 1;
+    ctx.filter = 'none';
     lastPos.current = pos;
   }
 
-  function handleMouseUp() { setIsPainting(false); lastPos.current = null; }
+  function handleMouseUp(e: React.MouseEvent<HTMLCanvasElement>) {
+    if (activeTool === 'crop' && isCropDragging && cropRect && cropRect.w > 20 && cropRect.h > 20) {
+      setIsCropDragging(false);
+      applyCrop();
+      return;
+    }
+    setIsCropDragging(false);
+    setIsPainting(false);
+    lastPos.current = null;
+  }
+
+  function applyCrop() {
+    if (!cropRect) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    if (!ctx) return;
+    const { x, y, w, h } = cropRect;
+    const imageData = ctx.getImageData(Math.round(x), Math.round(y), Math.round(w), Math.round(h));
+    const tmpCanvas = document.createElement('canvas');
+    tmpCanvas.width = Math.round(w);
+    tmpCanvas.height = Math.round(h);
+    const tmpCtx = tmpCanvas.getContext('2d');
+    if (!tmpCtx) return;
+    tmpCtx.putImageData(imageData, 0, 0);
+    const dataUrl = tmpCanvas.toDataURL('image/png');
+    setSourceImage(dataUrl);
+    setCropRect(null);
+  }
+
+  function handleMouseLeave(e: React.MouseEvent<HTMLCanvasElement>) {
+    setIsPainting(false);
+    lastPos.current = null;
+    setEyedropperPreview(null);
+  }
 
   function handleDrop(e: React.DragEvent) {
     e.preventDefault();
@@ -154,7 +287,7 @@ export default function PhotoCanvas() {
       case 'brush': case 'eraser': case 'dodge': case 'burn': case 'clone':
       case 'heal': case 'smudge': case 'blur-tool': case 'sharpen-tool': return 'crosshair';
       case 'hand': return 'grab';
-      case 'eyedropper': return 'cell';
+      case 'eyedropper': return 'none'; // We show custom preview
       case 'lasso': case 'crop': return 'crosshair';
       default: return 'default';
     }
@@ -283,8 +416,60 @@ export default function PhotoCanvas() {
                   onMouseDown={handleMouseDown}
                   onMouseMove={handleMouseMove}
                   onMouseUp={handleMouseUp}
-                  onMouseLeave={handleMouseUp}
+                  onMouseLeave={handleMouseLeave}
                 />
+
+                {/* Crop overlay */}
+                {activeTool === 'crop' && cropRect && (
+                  <div
+                    className="absolute border-2 border-violet-400 pointer-events-none"
+                    style={{
+                      left: `${(cropRect.x / (canvasRef.current?.width || 1)) * 100}%`,
+                      top: `${(cropRect.y / (canvasRef.current?.height || 1)) * 100}%`,
+                      width: `${(cropRect.w / (canvasRef.current?.width || 1)) * 100}%`,
+                      height: `${(cropRect.h / (canvasRef.current?.height || 1)) * 100}%`,
+                    }}
+                  >
+                    {/* Rule-of-thirds grid */}
+                    <div className="absolute inset-0">
+                      <div className="absolute top-1/3 left-0 right-0 border-t border-white/20" />
+                      <div className="absolute top-2/3 left-0 right-0 border-t border-white/20" />
+                      <div className="absolute top-0 bottom-0 left-1/3 border-l border-white/20" />
+                      <div className="absolute top-0 bottom-0 left-2/3 border-l border-white/20" />
+                    </div>
+                    {/* Corner handles */}
+                    {[['top-0 left-0', '-translate-x-1/2 -translate-y-1/2'], ['top-0 right-0', 'translate-x-1/2 -translate-y-1/2'],
+                      ['bottom-0 left-0', '-translate-x-1/2 translate-y-1/2'], ['bottom-0 right-0', 'translate-x-1/2 translate-y-1/2']].map(([pos, tr]) => (
+                      <div key={pos} className={`absolute ${pos} w-3 h-3 bg-white rounded-full border-2 border-violet-500 transform ${tr}`} />
+                    ))}
+                    {/* Darken outside */}
+                    <div className="absolute inset-0 ring-[2000px] ring-black/50 ring-offset-0" />
+                    <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 px-2 py-1 bg-black/80 rounded text-[10px] text-white whitespace-nowrap">
+                      {Math.round(cropRect.w)} × {Math.round(cropRect.h)} · Release to crop
+                    </div>
+                  </div>
+                )}
+
+                {/* Eyedropper preview */}
+                {activeTool === 'eyedropper' && eyedropperPreview && (
+                  <div
+                    className="absolute pointer-events-none z-50"
+                    style={{
+                      left: eyedropperPreview.x + 16,
+                      top: eyedropperPreview.y - 40,
+                    }}
+                  >
+                    <div className="flex items-center gap-2 bg-[hsl(222_18%_10%)] border border-[hsl(220_15%_22%)] rounded-lg px-2 py-1.5 shadow-xl">
+                      <div
+                        className="w-5 h-5 rounded border border-[hsl(220_15%_25%)]"
+                        style={{ background: eyedropperPreview.color }}
+                      />
+                      <span className="text-[11px] text-white font-mono">{eyedropperPreview.color.toUpperCase()}</span>
+                      <Pipette size={10} className="text-gray-500" />
+                    </div>
+                  </div>
+                )}
+
                 {showGrid && (
                   <div
                     className="absolute inset-0 pointer-events-none rounded-sm"
@@ -294,6 +479,7 @@ export default function PhotoCanvas() {
                     }}
                   />
                 )}
+
                 {layers.filter((l) => l.visible && l.type === 'text').map((layer) =>
                   layer.textStyle ? (
                     <div
@@ -314,6 +500,12 @@ export default function PhotoCanvas() {
                         textAlign: layer.textStyle.align,
                         opacity: layer.opacity / 100,
                         whiteSpace: 'nowrap',
+                        textShadow: layer.textStyle.shadow
+                          ? `0 2px ${layer.textStyle.shadowBlur}px ${layer.textStyle.shadowColor}`
+                          : undefined,
+                        WebkitTextStroke: layer.textStyle.stroke
+                          ? `${layer.textStyle.strokeWidth}px ${layer.textStyle.strokeColor}`
+                          : undefined,
                       }}
                     >
                       {layer.text}
@@ -324,9 +516,7 @@ export default function PhotoCanvas() {
             )}
           </div>
         ) : (
-          <div
-            className="flex flex-col items-center justify-center w-[820px] h-[540px] border-2 border-dashed border-[hsl(220_15%_18%)] rounded-2xl bg-[hsl(222_18%_9%)] gap-4 transition-all"
-          >
+          <div className="flex flex-col items-center justify-center w-[820px] h-[540px] border-2 border-dashed border-[hsl(220_15%_18%)] rounded-2xl bg-[hsl(222_18%_9%)] gap-4 transition-all">
             <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-violet-900/50 to-fuchsia-900/50 border border-violet-700/30 flex items-center justify-center">
               <span className="text-4xl">🖼️</span>
             </div>
@@ -335,7 +525,9 @@ export default function PhotoCanvas() {
               <p className="text-gray-500 text-sm max-w-xs">Upload a photo or drag & drop an image anywhere</p>
             </div>
             <div className="flex flex-wrap gap-1.5 justify-center max-w-sm">
-              {['Tone Curves','HSL Color Mix','Split Toning','Clarity & Dehaze','Real Pixel Processing','Film Grain','Text Layers','Before/After','40+ Filters','8K Export'].map((feat) => (
+              {['Tone Curves','HSL Mixing','Split Toning','Clarity & Dehaze','Real Pixel Processing',
+                'Film Grain','Text Layers','Before/After','48 Filters','8K Export',
+                'Portrait AI','Collage Maker','Sticker Library','Background Remover'].map((feat) => (
                 <span key={feat} className="px-2 py-0.5 bg-violet-900/20 border border-violet-800/20 rounded text-[10px] text-violet-400">{feat}</span>
               ))}
             </div>
@@ -343,6 +535,7 @@ export default function PhotoCanvas() {
         )}
       </div>
 
+      {/* Zoom controls */}
       <div className="absolute bottom-4 right-4 flex items-center gap-1 bg-[hsl(222_18%_10%)] border border-[hsl(220_15%_18%)] rounded-lg px-2 py-1 shadow-xl backdrop-blur-sm">
         <button onClick={() => setZoom(Math.max(10, zoom - 10))} className="p-1 text-gray-500 hover:text-white transition-all"><ZoomOut size={13} /></button>
         <button onClick={() => setZoom(100)} className="px-2 text-[11px] text-gray-300 hover:text-white font-mono transition-all min-w-[42px] text-center">{zoom}%</button>
@@ -351,9 +544,29 @@ export default function PhotoCanvas() {
         <button onClick={() => setZoom(100)} className="p-1 text-gray-500 hover:text-white transition-all" title="Reset Zoom"><Maximize2 size={13} /></button>
       </div>
 
+      {/* Info overlay */}
       {sourceImage && canvasSize.w > 0 && (
         <div className="absolute top-3 left-3 px-2 py-0.5 bg-black/60 border border-white/5 rounded text-[9px] text-gray-500 font-mono backdrop-blur-sm">
           {canvasSize.w} × {canvasSize.h} · {zoom}%
+          {activeTool === 'crop' && cropRect && ` · Cropping ${Math.round(cropRect.w)}×${Math.round(cropRect.h)}`}
+        </div>
+      )}
+
+      {/* Crop apply button */}
+      {activeTool === 'crop' && cropRect && cropRect.w > 20 && (
+        <div className="absolute bottom-16 left-1/2 -translate-x-1/2 flex gap-2">
+          <button
+            onClick={applyCrop}
+            className="px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white text-xs font-bold rounded-lg shadow-xl transition-all"
+          >
+            Apply Crop
+          </button>
+          <button
+            onClick={() => setCropRect(null)}
+            className="px-4 py-2 bg-[hsl(222_18%_12%)] border border-[hsl(220_15%_20%)] text-gray-300 hover:text-white text-xs rounded-lg shadow-xl transition-all"
+          >
+            Cancel
+          </button>
         </div>
       )}
     </div>
