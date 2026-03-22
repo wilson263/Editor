@@ -15,6 +15,11 @@ import SelectiveColorPanel from "./panels/SelectiveColorPanel";
 import PortraitPanel from "./panels/PortraitPanel";
 import CollagePanel from "./panels/CollagePanel";
 import StickerPanel from "./panels/StickerPanel";
+import EffectsPanel from "./panels/EffectsPanel";
+import ToneMappingPanel from "./panels/ToneMappingPanel";
+import ColorPalettePanel from "./panels/ColorPalettePanel";
+import BatchPanel from "./panels/BatchPanel";
+import MaskingPanel from "./panels/MaskingPanel";
 import { SlidersHorizontal } from "lucide-react";
 
 export default function PanelSidebar() {
@@ -37,6 +42,11 @@ export default function PanelSidebar() {
     portrait: <PortraitPanel />,
     collage: <CollagePanel />,
     stickers: <StickerPanel />,
+    effects: <EffectsPanel />,
+    "tone-mapping": <ToneMappingPanel />,
+    palette: <ColorPalettePanel />,
+    batch: <BatchPanel />,
+    masking: <MaskingPanel />,
   };
 
   return (
