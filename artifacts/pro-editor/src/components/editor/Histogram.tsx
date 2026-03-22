@@ -9,14 +9,21 @@ export default function Histogram() {
   useEffect(() => {
     if (!sourceImage || !canvasRef.current) return;
 
+    const mainCanvas = document.getElementById("main-canvas") as HTMLCanvasElement | null;
     const img = new Image();
     img.onload = () => {
       const offscreen = document.createElement("canvas");
-      offscreen.width = img.naturalWidth;
-      offscreen.height = img.naturalHeight;
-      const ctx = offscreen.getContext("2d");
+      const scale = Math.min(1, 400 / Math.max(img.naturalWidth, img.naturalHeight));
+      offscreen.width = img.naturalWidth * scale;
+      offscreen.height = img.naturalHeight * scale;
+      const ctx = offscreen.getContext("2d", { willReadFrequently: true });
       if (!ctx) return;
-      ctx.drawImage(img, 0, 0);
+
+      if (mainCanvas) {
+        ctx.drawImage(mainCanvas, 0, 0, offscreen.width, offscreen.height);
+      } else {
+        ctx.drawImage(img, 0, 0, offscreen.width, offscreen.height);
+      }
 
       const imageData = ctx.getImageData(0, 0, offscreen.width, offscreen.height);
       const data = imageData.data;
@@ -39,25 +46,42 @@ export default function Histogram() {
       const hCtx = histCanvas.getContext("2d");
       if (!hCtx) return;
 
-      histCanvas.width = histCanvas.offsetWidth * window.devicePixelRatio || 256;
-      histCanvas.height = 64;
-      hCtx.clearRect(0, 0, histCanvas.width, histCanvas.height);
+      const dpr = window.devicePixelRatio || 1;
+      const displayWidth = histCanvas.offsetWidth || 220;
+      const displayHeight = 72;
+      histCanvas.width = displayWidth * dpr;
+      histCanvas.height = displayHeight * dpr;
+      hCtx.scale(dpr, dpr);
 
-      const W = histCanvas.width;
-      const H = histCanvas.height;
-      const maxR = Math.max(...rHist);
-      const maxG = Math.max(...gHist);
-      const maxB = Math.max(...bHist);
-      const maxL = Math.max(...lumHist);
+      const W = displayWidth;
+      const H = displayHeight;
 
-      const drawChannel = (hist: number[], maxVal: number, color: string, alpha: number = 0.7) => {
+      hCtx.fillStyle = "hsl(222 18% 7%)";
+      hCtx.fillRect(0, 0, W, H);
+
+      const gridColor = "rgba(255,255,255,0.03)";
+      hCtx.strokeStyle = gridColor;
+      hCtx.lineWidth = 1;
+      for (let x = 64; x < 256; x += 64) {
+        const gx = (x / 255) * W;
+        hCtx.beginPath();
+        hCtx.moveTo(gx, 0);
+        hCtx.lineTo(gx, H);
+        hCtx.stroke();
+      }
+
+      const maxR = Math.max(...rHist, 1);
+      const maxG = Math.max(...gHist, 1);
+      const maxB = Math.max(...bHist, 1);
+      const maxL = Math.max(...lumHist, 1);
+
+      const drawChannel = (hist: number[], maxVal: number, color: string, alpha: number = 0.65) => {
         hCtx.beginPath();
         hCtx.moveTo(0, H);
         for (let i = 0; i < 256; i++) {
           const x = (i / 255) * W;
-          const y = H - (hist[i] / maxVal) * H * 0.9;
-          if (i === 0) hCtx.lineTo(x, y);
-          else hCtx.lineTo(x, y);
+          const y = H - (hist[i] / maxVal) * H * 0.92;
+          hCtx.lineTo(x, y);
         }
         hCtx.lineTo(W, H);
         hCtx.closePath();
@@ -68,9 +92,10 @@ export default function Histogram() {
       };
 
       if (channel === "all") {
-        drawChannel(rHist, maxR, "rgba(255, 60, 60, 0.5)");
-        drawChannel(gHist, maxG, "rgba(60, 200, 60, 0.5)");
-        drawChannel(bHist, maxB, "rgba(60, 100, 255, 0.5)");
+        drawChannel(lumHist, maxL, "rgba(160,160,160,0.25)", 1);
+        drawChannel(rHist, maxR, "rgba(255, 60, 60, 0.45)");
+        drawChannel(gHist, maxG, "rgba(60, 200, 60, 0.45)");
+        drawChannel(bHist, maxB, "rgba(60, 100, 255, 0.45)");
       } else if (channel === "r") {
         drawChannel(rHist, maxR, "rgba(255, 80, 80, 0.8)");
       } else if (channel === "g") {
@@ -84,11 +109,11 @@ export default function Histogram() {
 
   return (
     <div>
-      <div className="rounded-md overflow-hidden bg-[hsl(222_18%_8%)] border border-[hsl(220_15%_16%)] mb-2">
+      <div className="rounded-md overflow-hidden bg-[hsl(222_18%_7%)] border border-[hsl(220_15%_15%)] mb-2">
         <canvas
           ref={canvasRef}
           className="w-full"
-          style={{ height: "64px", display: "block" }}
+          style={{ height: "72px", display: "block" }}
         />
       </div>
       <div className="flex gap-1">
@@ -98,11 +123,11 @@ export default function Histogram() {
             onClick={() => setChannel(ch)}
             className={`flex-1 py-1 text-[9px] font-bold rounded transition-all uppercase ${
               channel === ch
-                ? ch === "all" ? "bg-[hsl(258_90%_60%)] text-white" :
+                ? ch === "all" ? "bg-[hsl(258_90%_55%)] text-white" :
                   ch === "r" ? "bg-red-700 text-white" :
                   ch === "g" ? "bg-green-700 text-white" :
                   "bg-blue-700 text-white"
-                : "bg-[hsl(220_15%_16%)] text-gray-500 hover:text-gray-300"
+                : "bg-[hsl(220_15%_14%)] text-gray-600 hover:text-gray-300"
             }`}
           >
             {ch}
