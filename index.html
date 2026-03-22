@@ -442,7 +442,7 @@
       <a href="#ai">AI Tools</a>
       <a href="#editor">Editor</a>
     </div>
-    <a href="https://8a3e628e-375f-478d-8867-161d5eb0c3cb-00-373zy0pupr7wo.picard.replit.dev/" target="_blank" class="nav-cta">Launch Editor →</a>
+    <a href="#" id="editor-link-nav" class="nav-cta" onclick="openEditor(event)">Launch Editor →</a>
   </nav>
 
   <!-- HERO -->
@@ -463,9 +463,7 @@
         color grading, 8K support, and everything you need to create stunning visuals.
       </p>
       <div class="hero-actions">
-        <a href="https://8a3e628e-375f-478d-8867-161d5eb0c3cb-00-373zy0pupr7wo.picard.replit.dev/" target="_blank" class="btn-primary">
-          <span>🚀</span> Start Editing Free
-        </a>
+        <a href="#" id="editor-link-hero" class="btn-primary" onclick="openEditor(event)"><span>🚀</span> Start Editing Free</a>
         <a href="#features" class="btn-secondary">
           <span>▶</span> See Features
         </a>
@@ -673,7 +671,7 @@
       <h2 class="cta-title">Ready to create<br/><span style="background:linear-gradient(135deg,#a78bfa,#ec4899,#f97316);-webkit-background-clip:text;-webkit-text-fill-color:transparent">something amazing?</span></h2>
       <p class="cta-desc">Join creators who use ProEditor to make professional-grade photos and videos.</p>
       <div class="cta-actions">
-        <a href="https://8a3e628e-375f-478d-8867-161d5eb0c3cb-00-373zy0pupr7wo.picard.replit.dev/" target="_blank" class="btn-primary">🚀 Launch ProEditor — It's Free</a>
+        <a href="#" id="editor-link-cta" class="btn-primary" onclick="openEditor(event)">🚀 Launch ProEditor — It's Free</a>
         <a href="#features" class="btn-secondary">📖 Learn More</a>
       </div>
     </div>
@@ -813,6 +811,28 @@ for (let i = 0; i < 20; i++) {
   `;
   pcont.appendChild(p);
 }
+
+
+// ─── DYNAMIC EDITOR URL ───
+var FALLBACK_EDITOR_URL = 'https://ae8c78a7-9f5d-46c0-a078-c9205069dbb7-00-1xujpt8fk7xw5.picard.replit.dev/';
+function getEditorUrl() {
+  var host = window.location.hostname;
+  if (host.indexOf('replit') !== -1 || host === 'localhost' || host === '127.0.0.1') {
+    return window.location.origin + '/';
+  }
+  return FALLBACK_EDITOR_URL;
+}
+function openEditor(e) {
+  e.preventDefault();
+  window.open(getEditorUrl(), '_blank');
+}
+document.addEventListener('DOMContentLoaded', function() {
+  var url = getEditorUrl();
+  ['editor-link-nav','editor-link-hero','editor-link-cta'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) { el.href = url; el.target = '_blank'; el.rel = 'noopener'; }
+  });
+});
 
 // ─── INTERSECTION OBSERVER ───
 const observer = new IntersectionObserver((entries) => {
