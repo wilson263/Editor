@@ -4,13 +4,15 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
 import EditorPage from "@/pages/editor";
+import LandingPage from "@/pages/landing";
 
 const queryClient = new QueryClient();
 
 function Router() {
   return (
     <Switch>
-      <Route path="/" component={EditorPage} />
+      <Route path="/" component={LandingPage} />
+      <Route path="/editor" component={EditorPage} />
       <Route component={NotFound} />
     </Switch>
   );
