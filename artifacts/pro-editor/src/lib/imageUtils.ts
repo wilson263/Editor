@@ -8,6 +8,7 @@ export const FILTERS: { id: string; name: string; css: string; category: string 
   { id: "fade", name: "Fade", css: "contrast(0.85) brightness(1.1) saturate(0.8)", category: "basic" },
   { id: "mono", name: "Mono", css: "grayscale(1) contrast(1.1)", category: "black-white" },
   { id: "noir", name: "Noir", css: "grayscale(1) contrast(1.4) brightness(0.85)", category: "black-white" },
+  { id: "silver", name: "Silver", css: "grayscale(0.9) contrast(1.05) brightness(1.1)", category: "black-white" },
   { id: "warm", name: "Warm", css: "sepia(0.3) saturate(1.2) brightness(1.05)", category: "basic" },
   { id: "cool", name: "Cool", css: "hue-rotate(15deg) saturate(1.1) brightness(1.05)", category: "basic" },
   { id: "golden", name: "Golden Hour", css: "sepia(0.5) saturate(1.4) brightness(1.1) contrast(1.05)", category: "cinematic" },
@@ -40,6 +41,14 @@ export const FILTERS: { id: string; name: string; css: string; category: string 
   { id: "morning", name: "Morning Mist", css: "brightness(1.1) saturate(0.85) contrast(0.9) hue-rotate(5deg)", category: "nature" },
   { id: "dark-soul", name: "Dark Soul", css: "brightness(0.7) contrast(1.6) saturate(0.4)", category: "artistic" },
   { id: "spring", name: "Spring Blossom", css: "hue-rotate(20deg) saturate(1.2) brightness(1.12) contrast(0.95)", category: "nature" },
+  { id: "infrared", name: "Infrared", css: "hue-rotate(140deg) saturate(1.6) contrast(1.4) brightness(1.1)", category: "artistic" },
+  { id: "polaroid", name: "Polaroid", css: "sepia(0.3) saturate(1.1) brightness(1.1) contrast(0.85)", category: "retro" },
+  { id: "kodachrome", name: "Kodachrome", css: "saturate(1.4) contrast(1.2) brightness(1.0) hue-rotate(-8deg)", category: "film" },
+  { id: "agfa", name: "Agfa Vista", css: "saturate(1.25) contrast(1.08) brightness(0.98) hue-rotate(5deg)", category: "film" },
+  { id: "fuji400h", name: "Fuji 400H", css: "saturate(0.9) contrast(0.98) brightness(1.05) hue-rotate(8deg)", category: "film" },
+  { id: "sear", name: "Searing", css: "contrast(1.5) saturate(1.8) brightness(1.2) hue-rotate(-5deg)", category: "basic" },
+  { id: "midnight", name: "Midnight", css: "brightness(0.8) contrast(1.3) saturate(0.7) hue-rotate(230deg)", category: "cinematic" },
+  { id: "aurora", name: "Aurora", css: "hue-rotate(160deg) saturate(1.6) contrast(1.1) brightness(0.9)", category: "artistic" },
 ];
 
 export const LUT_PRESETS = [
@@ -55,6 +64,9 @@ export const LUT_PRESETS = [
   { id: "neon-noir", name: "Neon Noir", gradient: "from-purple-900 to-pink-500" },
   { id: "arctic", name: "Arctic Blue", gradient: "from-blue-300 to-cyan-500" },
   { id: "sunset-strip", name: "Sunset Strip", gradient: "from-red-500 to-purple-700" },
+  { id: "desert-dunes", name: "Desert Dunes", gradient: "from-yellow-600 to-amber-800" },
+  { id: "emerald-city", name: "Emerald City", gradient: "from-emerald-400 to-teal-700" },
+  { id: "retro-chrome", name: "Retro Chrome", gradient: "from-slate-400 to-orange-300" },
 ];
 
 export function buildFilterCSS(adj: Adjustments, selectedFilter: string): string {
@@ -371,6 +383,7 @@ export const ASPECT_RATIOS = [
   { label: "5:4", value: "5:4" },
   { label: "9:16", value: "9:16" },
   { label: "3:4", value: "3:4" },
+  { label: "Golden", value: "1.618:1" },
 ];
 
 export const TRANSITIONS = [
@@ -384,6 +397,7 @@ export const FONTS = [
   "Dancing Script", "Lobster", "Oswald", "Raleway", "Nunito",
   "Poppins", "Lato", "Open Sans", "Source Sans Pro", "Merriweather",
   "Abril Fatface", "Pacifico", "Permanent Marker", "Special Elite", "Cinzel",
+  "Roboto Slab", "Ubuntu", "Quicksand", "Righteous", "Orbitron",
 ];
 
 export const BLEND_MODES = [
@@ -394,13 +408,17 @@ export const BLEND_MODES = [
 
 export const SHAPES = [
   { id: "rectangle", label: "Rectangle" },
+  { id: "rounded-rect", label: "Rounded Rect" },
   { id: "ellipse", label: "Ellipse" },
   { id: "triangle", label: "Triangle" },
+  { id: "pentagon", label: "Pentagon" },
+  { id: "hexagon", label: "Hexagon" },
   { id: "star", label: "Star" },
   { id: "heart", label: "Heart" },
   { id: "arrow", label: "Arrow" },
   { id: "line", label: "Line" },
   { id: "diamond", label: "Diamond" },
+  { id: "parallelogram", label: "Parallelogram" },
 ];
 
 export const AI_TOOLS = [
@@ -436,4 +454,127 @@ export function computeHistogramData(canvas: HTMLCanvasElement): {
     lum[l]++;
   }
   return { r, g, b, lum };
+}
+
+// Real background removal using color-distance-based alpha masking
+export async function removeBackground(canvas: HTMLCanvasElement, threshold = 30): Promise<void> {
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+  if (!ctx) return;
+
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const data = imageData.data;
+  const width = canvas.width;
+  const height = canvas.height;
+
+  // Sample background from corners
+  const cornerSamples: number[][] = [];
+  const samplePoints = [
+    [0, 0], [width - 1, 0], [0, height - 1], [width - 1, height - 1],
+    [Math.floor(width / 4), 0], [Math.floor(3 * width / 4), 0],
+  ];
+  for (const [x, y] of samplePoints) {
+    const idx = (y * width + x) * 4;
+    cornerSamples.push([data[idx], data[idx + 1], data[idx + 2]]);
+  }
+
+  const bgR = cornerSamples.reduce((s, c) => s + c[0], 0) / cornerSamples.length;
+  const bgG = cornerSamples.reduce((s, c) => s + c[1], 0) / cornerSamples.length;
+  const bgB = cornerSamples.reduce((s, c) => s + c[2], 0) / cornerSamples.length;
+
+  for (let i = 0; i < data.length; i += 4) {
+    const r = data[i], g = data[i + 1], b = data[i + 2];
+    const dist = Math.sqrt(
+      Math.pow(r - bgR, 2) + Math.pow(g - bgG, 2) + Math.pow(b - bgB, 2)
+    );
+    if (dist < threshold * 2) {
+      const alpha = Math.max(0, Math.min(255, (dist / (threshold * 2)) * 255));
+      data[i + 3] = alpha;
+    }
+  }
+
+  ctx.putImageData(imageData, 0, 0);
+}
+
+// Auto-enhance: analyze image and apply optimal adjustments
+export function autoEnhanceAnalysis(canvas: HTMLCanvasElement): Partial<Adjustments> {
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+  if (!ctx) return {};
+
+  const imgData = ctx.getImageData(0, 0, Math.min(canvas.width, 400), Math.min(canvas.height, 400));
+  const data = imgData.data;
+
+  let totalR = 0, totalG = 0, totalB = 0, totalLum = 0;
+  let minLum = 255, maxLum = 0;
+  let darkCount = 0, brightCount = 0;
+  const pixelCount = data.length / 4;
+
+  for (let i = 0; i < data.length; i += 4) {
+    const r = data[i], g = data[i + 1], b = data[i + 2];
+    const lum = r * 0.299 + g * 0.587 + b * 0.114;
+    totalR += r; totalG += g; totalB += b; totalLum += lum;
+    minLum = Math.min(minLum, lum);
+    maxLum = Math.max(maxLum, lum);
+    if (lum < 80) darkCount++;
+    if (lum > 180) brightCount++;
+  }
+
+  const avgR = totalR / pixelCount;
+  const avgG = totalG / pixelCount;
+  const avgB = totalB / pixelCount;
+  const avgLum = totalLum / pixelCount;
+  const darkRatio = darkCount / pixelCount;
+  const brightRatio = brightCount / pixelCount;
+
+  const enhancements: Partial<Adjustments> = {};
+
+  // Fix exposure
+  if (avgLum < 90) enhancements.exposure = Math.min(3, (90 - avgLum) / 30);
+  else if (avgLum > 170) enhancements.exposure = Math.max(-3, (170 - avgLum) / 30);
+
+  // Fix contrast if range is narrow
+  const range = maxLum - minLum;
+  if (range < 150) enhancements.contrast = Math.min(40, (150 - range) / 5);
+
+  // Fix white balance (color cast)
+  const avgAll = (avgR + avgG + avgB) / 3;
+  if (avgB - avgAll > 15) enhancements.temperature = -Math.min(30, (avgB - avgAll));
+  if (avgR - avgAll > 15) enhancements.temperature = Math.min(30, (avgR - avgAll));
+
+  // Shadows and highlights
+  if (darkRatio > 0.3) enhancements.shadows = Math.min(30, darkRatio * 80);
+  if (brightRatio > 0.3) enhancements.highlights = Math.max(-30, -brightRatio * 60);
+
+  // Boost vibrance slightly
+  enhancements.vibrance = 15;
+  enhancements.clarity = 10;
+
+  return enhancements;
+}
+
+// Apply Gaussian-style blur in-place for noise reduction
+export function applyNoiseReduction(imageData: ImageData, strength: number): void {
+  if (strength <= 0) return;
+  const radius = Math.ceil(strength / 20);
+  const data = imageData.data;
+  const width = imageData.width;
+  const height = imageData.height;
+  const copy = new Uint8ClampedArray(data);
+
+  for (let y = radius; y < height - radius; y++) {
+    for (let x = radius; x < width - radius; x++) {
+      let r = 0, g = 0, b = 0, count = 0;
+      for (let dy = -radius; dy <= radius; dy++) {
+        for (let dx = -radius; dx <= radius; dx++) {
+          const idx = ((y + dy) * width + (x + dx)) * 4;
+          r += copy[idx]; g += copy[idx + 1]; b += copy[idx + 2];
+          count++;
+        }
+      }
+      const idx = (y * width + x) * 4;
+      const factor = strength / 100;
+      data[idx] = copy[idx] * (1 - factor) + (r / count) * factor;
+      data[idx + 1] = copy[idx + 1] * (1 - factor) + (g / count) * factor;
+      data[idx + 2] = copy[idx + 2] * (1 - factor) + (b / count) * factor;
+    }
+  }
 }
