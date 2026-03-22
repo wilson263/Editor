@@ -20,6 +20,8 @@ import ToneMappingPanel from "./panels/ToneMappingPanel";
 import ColorPalettePanel from "./panels/ColorPalettePanel";
 import BatchPanel from "./panels/BatchPanel";
 import MaskingPanel from "./panels/MaskingPanel";
+import PresetsPanel from "./panels/PresetsPanel";
+import LocalAdjPanel from "./panels/LocalAdjPanel";
 import { SlidersHorizontal } from "lucide-react";
 
 export default function PanelSidebar() {
@@ -47,6 +49,8 @@ export default function PanelSidebar() {
     palette: <ColorPalettePanel />,
     batch: <BatchPanel />,
     masking: <MaskingPanel />,
+    presets: <PresetsPanel />,
+    "local-adj": <LocalAdjPanel />,
   };
 
   return (

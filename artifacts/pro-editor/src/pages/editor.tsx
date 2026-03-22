@@ -44,6 +44,10 @@ export default function EditorPage() {
         case "F6": e.preventDefault(); store.setActivePanel("ai"); return;
         case "F7": e.preventDefault(); store.setActivePanel("brush-panel"); return;
         case "F8": e.preventDefault(); store.setActivePanel("gradient-panel"); return;
+        case "F9": e.preventDefault(); store.setActivePanel("presets"); return;
+        case "F10": e.preventDefault(); store.setActivePanel("local-adj"); return;
+        case "F11": e.preventDefault(); store.setActivePanel("effects"); return;
+        case "F12": e.preventDefault(); store.setActivePanel("ai"); return;
       }
 
       // Tool shortcuts

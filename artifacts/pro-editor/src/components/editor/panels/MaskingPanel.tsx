@@ -2,7 +2,7 @@ import { useState, useRef } from "react";
 import { useEditorStore } from "@/lib/editorStore";
 import { generateId } from "@/lib/imageUtils";
 import {
-  Layers, CircleOff, Rectangle, Brush, Star, Zap, Plus, Trash2,
+  Layers, CircleOff, RectangleHorizontal, Brush, Star, Zap, Plus, Trash2,
   Eye, EyeOff, ChevronDown, ChevronRight, Check, AlertCircle
 } from "lucide-react";
 
@@ -19,7 +19,7 @@ interface Mask {
 
 const MASK_TYPES = [
   { id: "brush", label: "Brush Mask", icon: <Brush size={13} />, desc: "Paint a mask with brush", color: "text-violet-400" },
-  { id: "linear-gradient", label: "Linear Gradient", icon: <Rectangle size={13} />, desc: "Gradient mask from top to bottom", color: "text-blue-400" },
+  { id: "linear-gradient", label: "Linear Gradient", icon: <RectangleHorizontal size={13} />, desc: "Gradient mask from top to bottom", color: "text-blue-400" },
   { id: "radial-gradient", label: "Radial Gradient", icon: <Star size={13} />, desc: "Circular radial gradient mask", color: "text-green-400" },
   { id: "luminosity", label: "Luminosity Mask", icon: <Zap size={13} />, desc: "Target by brightness range", color: "text-amber-400" },
   { id: "color-range", label: "Color Range", icon: <CircleOff size={13} />, desc: "Select by color similarity", color: "text-pink-400" },

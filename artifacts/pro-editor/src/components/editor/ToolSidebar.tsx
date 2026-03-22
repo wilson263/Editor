@@ -5,7 +5,8 @@ import {
   PenTool, Lasso, Sparkles, Sun, Moon, Wind, Layers,
   Sliders, Palette, Scan, SlidersHorizontal, Filter,
   Move, Clock, Droplets, Stamp, Keyboard,
-  User, Grid3X3, Smile, Film, Scissors, Star, Package, Box
+  User, Grid3X3, Smile, Film, Scissors, Star, Package, Box,
+  BookOpen, RadioTower
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 
@@ -59,7 +60,9 @@ const PANELS = [
   { id: "portrait", icon: <User size={13} />, label: "Portrait", group: "AI" },
   { id: "collage", icon: <Grid3X3 size={13} />, label: "Collage", group: "AI" },
   { id: "batch", icon: <Package size={13} />, label: "Batch", group: "AI" },
-  // History
+  { id: "local-adj", icon: <RadioTower size={13} />, label: "Local", group: "AI" },
+  // Presets & History
+  { id: "presets", icon: <BookOpen size={13} />, label: "Presets", group: "History" },
   { id: "history", icon: <Clock size={13} />, label: "History", group: "History" },
 ];
 
