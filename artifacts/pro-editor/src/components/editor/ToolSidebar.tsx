@@ -4,7 +4,8 @@ import {
   Wand2, Magnet, Scissors, CircleDot, Zap, Pipette, Hand,
   PenTool, Lasso, Sparkles, Sun, Moon, Wind, Layers,
   Sliders, Palette, Scan, SlidersHorizontal, Filter,
-  Image, Move, Clock, Droplets, Stamp, Keyboard, Layers2
+  Move, Clock, Droplets, Stamp, Keyboard,
+  User, Grid3X3, Smile
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 
@@ -38,7 +39,7 @@ const PANELS = [
   { id: "color", icon: <Palette size={14} />, label: "Color" },
   { id: "detail", icon: <SlidersHorizontal size={14} />, label: "Detail" },
   { id: "selective", icon: <Pipette size={14} />, label: "Select" },
-  { id: "gradient-panel", icon: <Blend size={14} />, label: "Gradient" },
+  { id: "gradient-panel", icon: <Blend size={14} />, label: "Grad" },
   { id: "layers", icon: <Layers size={14} />, label: "Layers" },
   { id: "text-panel", icon: <Type size={14} />, label: "Text" },
   { id: "crop-panel", icon: <Crop size={14} />, label: "Crop" },
@@ -46,6 +47,9 @@ const PANELS = [
   { id: "watermark", icon: <Stamp size={14} />, label: "Mark" },
   { id: "history", icon: <Clock size={14} />, label: "History" },
   { id: "ai", icon: <Scan size={14} />, label: "AI" },
+  { id: "portrait", icon: <User size={14} />, label: "Portrait" },
+  { id: "collage", icon: <Grid3X3 size={14} />, label: "Collage" },
+  { id: "stickers", icon: <Smile size={14} />, label: "Stickers" },
 ];
 
 const GROUP_LABELS: Record<string, string> = {
