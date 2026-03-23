@@ -912,7 +912,7 @@ export default function LandingPage() {
         <video
           ref={videoRef}
           className="intro-video"
-          src="/intro.mp4"
+          src={`${import.meta.env.BASE_URL}intro.mp4`}
           muted
           playsInline
           preload="auto"
@@ -966,7 +966,7 @@ export default function LandingPage() {
           {/* Hero uses the same video as ambient BG */}
           <video
             className="hero-video-bg"
-            src="/intro.mp4"
+            src={`${import.meta.env.BASE_URL}intro.mp4`}
             autoPlay
             muted
             loop
