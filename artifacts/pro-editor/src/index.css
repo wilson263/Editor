@@ -338,6 +338,47 @@
     width: 20px; overflow: hidden;
   }
 
+  /* Beast slider range inputs */
+  input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    height: 20px;
+    background: transparent;
+    cursor: pointer;
+    outline: none;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #fff;
+    border: 2px solid rgba(139, 92, 246, 0.8);
+    box-shadow: 0 0 0 3px rgba(139,92,246,0.15), 0 2px 6px rgba(0,0,0,0.6);
+    transition: all 0.12s ease;
+    cursor: grab;
+  }
+  input[type="range"]::-webkit-slider-thumb:hover {
+    transform: scale(1.2);
+    border-color: #a78bfa;
+    box-shadow: 0 0 0 4px rgba(139,92,246,0.25), 0 2px 8px rgba(0,0,0,0.7);
+  }
+  input[type="range"]::-webkit-slider-thumb:active {
+    cursor: grabbing;
+    transform: scale(1.15);
+    border-color: #c4b5fd;
+    box-shadow: 0 0 0 5px rgba(139,92,246,0.35), 0 0 16px rgba(139,92,246,0.5);
+  }
+  input[type="range"]::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #fff;
+    border: 2px solid rgba(139, 92, 246, 0.8);
+    box-shadow: 0 0 0 3px rgba(139,92,246,0.15), 0 2px 6px rgba(0,0,0,0.6);
+    cursor: grab;
+  }
+
   /* Histogram */
   .histogram-bar { @apply absolute bottom-0 w-full opacity-70; }
 
