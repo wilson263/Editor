@@ -5,6 +5,9 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
 import EditorPage from "@/pages/editor";
 import LandingPage from "@/pages/landing";
+import AppUIDesigner from "@/pages/app-ui-designer";
+import WebUIDesigner from "@/pages/web-ui-designer";
+import GraphicDesigner from "@/pages/graphic-designer";
 
 const queryClient = new QueryClient();
 
@@ -13,6 +16,9 @@ function Router() {
     <Switch>
       <Route path="/" component={LandingPage} />
       <Route path="/editor" component={EditorPage} />
+      <Route path="/app-designer" component={AppUIDesigner} />
+      <Route path="/web-designer" component={WebUIDesigner} />
+      <Route path="/graphic-designer" component={GraphicDesigner} />
       <Route component={NotFound} />
     </Switch>
   );
