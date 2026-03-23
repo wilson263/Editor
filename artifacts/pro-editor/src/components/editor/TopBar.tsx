@@ -104,9 +104,9 @@ export default function TopBar() {
       className="shrink-0 z-50"
       style={{
         height: "46px",
-        background: "linear-gradient(180deg, #0a0818 0%, #060412 100%)",
-        borderBottom: "1px solid rgba(139,92,246,0.12)",
-        boxShadow: "0 1px 0 rgba(139,92,246,0.05), 0 4px 24px rgba(0,0,0,0.4)",
+        background: "linear-gradient(180deg, #080010 0%, #030006 100%)",
+        borderBottom: "1px solid rgba(139,92,246,0.15)",
+        boxShadow: "0 1px 0 rgba(139,92,246,0.08), 0 4px 32px rgba(0,0,0,0.8)",
         display: "flex",
         alignItems: "center",
         padding: "0 8px",
