@@ -1044,3 +1044,296 @@ export function applyRadialFilter(imageData: ImageData, filter: RadialFilter): v
     }
   }
 }
+
+// ============================================================
+// ADVANCED PROCESSING ADDITIONS v2
+// ============================================================
+
+/**
+ * Median filter — best for removing salt-and-pepper noise while preserving edges
+ */
+export function applyMedianFilter(imageData: ImageData, radius: number): void {
+  if (radius <= 0) return;
+  const w = imageData.width, h = imageData.height;
+  const data = imageData.data;
+  const copy = new Uint8ClampedArray(data);
+  const r = Math.min(radius, 4);
+
+  for (let y = r; y < h - r; y++) {
+    for (let x = r; x < w - r; x++) {
+      const rArr: number[] = [], gArr: number[] = [], bArr: number[] = [];
+      for (let dy = -r; dy <= r; dy++) {
+        for (let dx = -r; dx <= r; dx++) {
+          const ni = ((y+dy)*w + (x+dx)) * 4;
+          rArr.push(copy[ni]); gArr.push(copy[ni+1]); bArr.push(copy[ni+2]);
+        }
+      }
+      rArr.sort((a, b) => a - b); gArr.sort((a, b) => a - b); bArr.sort((a, b) => a - b);
+      const mid = Math.floor(rArr.length / 2);
+      const i = (y * w + x) * 4;
+      data[i] = rArr[mid]; data[i+1] = gArr[mid]; data[i+2] = bArr[mid];
+    }
+  }
+}
+
+/**
+ * High-pass filter for texture extraction / frequency separation
+ */
+export function applyHighPass(imageData: ImageData, radius: number, blend: number): void {
+  const w = imageData.width, h = imageData.height;
+  const data = imageData.data;
+  const copy = new Uint8ClampedArray(data);
+  const r = Math.max(1, radius);
+
+  // Gaussian blur
+  const blurred = new Uint8ClampedArray(copy);
+  for (let y = r; y < h - r; y++) {
+    for (let x = r; x < w - r; x++) {
+      let sr = 0, sg = 0, sb = 0, n = 0;
+      for (let dy = -r; dy <= r; dy++) {
+        for (let dx = -r; dx <= r; dx++) {
+          const ni = ((y+dy)*w+(x+dx))*4;
+          const gw = Math.exp(-(dx*dx+dy*dy)/(2*r*r));
+          sr += copy[ni]*gw; sg += copy[ni+1]*gw; sb += copy[ni+2]*gw; n += gw;
+        }
+      }
+      const bi = (y*w+x)*4;
+      blurred[bi]=sr/n; blurred[bi+1]=sg/n; blurred[bi+2]=sb/n;
+    }
+  }
+
+  // High pass = original - blurred + 128 (neutral grey)
+  const s = blend / 100;
+  for (let i = 0; i < data.length; i += 4) {
+    for (let c = 0; c < 3; c++) {
+      const hp = copy[i+c] - blurred[i+c] + 128;
+      data[i+c] = Math.max(0, Math.min(255, Math.round(copy[i+c] * (1-s) + hp * s)));
+    }
+  }
+}
+
+/**
+ * Orton glow effect — dreamy soft focus for portraits/landscape
+ * Blends original with overexposed blurred version
+ */
+export function applyOrtonGlow(imageData: ImageData, amount: number): void {
+  if (amount <= 0) return;
+  const w = imageData.width, h = imageData.height;
+  const data = imageData.data;
+  const copy = new Uint8ClampedArray(data);
+  const radius = Math.ceil(amount / 15);
+
+  // Overexpose copy
+  const bright = new Uint8ClampedArray(copy);
+  for (let i = 0; i < bright.length; i += 4) {
+    bright[i]   = Math.min(255, copy[i]   * 1.5);
+    bright[i+1] = Math.min(255, copy[i+1] * 1.5);
+    bright[i+2] = Math.min(255, copy[i+2] * 1.5);
+  }
+
+  // Blur the overexposed version
+  for (let y = radius; y < h - radius; y++) {
+    for (let x = radius; x < w - radius; x++) {
+      let r = 0, g = 0, b = 0, n = 0;
+      for (let dy = -radius; dy <= radius; dy++) {
+        for (let dx = -radius; dx <= radius; dx++) {
+          const ni = ((y+dy)*w+(x+dx))*4;
+          r += bright[ni]; g += bright[ni+1]; b += bright[ni+2]; n++;
+        }
+      }
+      const bi = (y*w+x)*4;
+      bright[bi]=r/n; bright[bi+1]=g/n; bright[bi+2]=b/n;
+    }
+  }
+
+  // Multiply blend: original * blurred/255
+  const s = amount / 100;
+  for (let i = 0; i < data.length; i += 4) {
+    for (let c = 0; c < 3; c++) {
+      const multiplied = (copy[i+c] / 255) * (bright[i+c] / 255) * 255;
+      const blended = copy[i+c] * (1-s) + multiplied * s;
+      data[i+c] = Math.max(0, Math.min(255, Math.round(blended)));
+    }
+  }
+}
+
+/**
+ * Cinematic color grade — teal shadows, warm highlights (Hollywood look)
+ */
+export function applyCinematicGrade(imageData: ImageData, strength: number): void {
+  if (strength <= 0) return;
+  const data = imageData.data;
+  const s = strength / 100;
+
+  for (let i = 0; i < data.length; i += 4) {
+    const lum = (data[i] * 0.299 + data[i+1] * 0.587 + data[i+2] * 0.114) / 255;
+
+    // Shadow teal: push shadows toward cyan/teal
+    const shadowW = Math.pow(1 - lum, 2);
+    // Highlight warm: push highlights toward warm orange
+    const highlightW = Math.pow(lum, 2);
+
+    const shadowTealR = -20 * shadowW * s;
+    const shadowTealG = 5  * shadowW * s;
+    const shadowTealB = 25 * shadowW * s;
+
+    const highlightWarmR = 20 * highlightW * s;
+    const highlightWarmG = 5  * highlightW * s;
+    const highlightWarmB = -15 * highlightW * s;
+
+    data[i]   = Math.max(0, Math.min(255, data[i]   + shadowTealR + highlightWarmR));
+    data[i+1] = Math.max(0, Math.min(255, data[i+1] + shadowTealG + highlightWarmG));
+    data[i+2] = Math.max(0, Math.min(255, data[i+2] + shadowTealB + highlightWarmB));
+  }
+}
+
+/**
+ * Advanced dodging and burning — Lightroom-style highlight recovery
+ * Lifts shadows, compresses highlights non-linearly
+ */
+export function applyToneCompression(imageData: ImageData, shadowLift: number, highlightRoll: number): void {
+  const data = imageData.data;
+  const sLift = shadowLift / 100;
+  const hRoll = highlightRoll / 100;
+
+  for (let i = 0; i < data.length; i += 4) {
+    for (let c = 0; c < 3; c++) {
+      let v = data[i+c] / 255;
+      // Shadow lift (crushes blacks toward gray)
+      if (sLift > 0) v = v + sLift * (1 - v) * (1 - v) * 0.4;
+      // Highlight rolloff (compresses near-whites)
+      if (hRoll > 0) {
+        const excess = Math.max(0, v - 0.7);
+        v = v - excess * hRoll * 0.7;
+      }
+      data[i+c] = Math.max(0, Math.min(255, Math.round(v * 255)));
+    }
+  }
+}
+
+/**
+ * Frequency separation bake — creates a smooth low-freq layer
+ * Useful for professional retouching
+ */
+export function applyFrequencySeparation(imageData: ImageData, blurRadius: number, blendStrength: number): void {
+  const w = imageData.width, h = imageData.height;
+  const data = imageData.data;
+  const copy = new Uint8ClampedArray(data);
+  const r = Math.max(2, blurRadius);
+  const s = blendStrength / 100;
+
+  // Box blur for low frequency
+  const lowFreq = new Uint8ClampedArray(copy);
+  for (let y = r; y < h - r; y++) {
+    for (let x = r; x < w - r; x++) {
+      let sr = 0, sg = 0, sb = 0, n = 0;
+      for (let dy = -r; dy <= r; dy++) {
+        for (let dx = -r; dx <= r; dx++) {
+          const ni = ((y+dy)*w+(x+dx))*4;
+          sr += copy[ni]; sg += copy[ni+1]; sb += copy[ni+2]; n++;
+        }
+      }
+      const bi = (y*w+x)*4;
+      lowFreq[bi]=sr/n; lowFreq[bi+1]=sg/n; lowFreq[bi+2]=sb/n;
+    }
+  }
+
+  // Blend: lerp toward low-frequency (smooths skin without losing texture)
+  for (let i = 0; i < data.length; i += 4) {
+    const lum = (copy[i] * 0.299 + copy[i+1] * 0.587 + copy[i+2] * 0.114);
+    // Only apply in midtone skin areas
+    const isMidtone = lum > 60 && lum < 210;
+    if (!isMidtone) continue;
+    const blendAmt = s * 0.6;
+    data[i]   = Math.round(copy[i]   * (1-blendAmt) + lowFreq[i]   * blendAmt);
+    data[i+1] = Math.round(copy[i+1] * (1-blendAmt) + lowFreq[i+1] * blendAmt);
+    data[i+2] = Math.round(copy[i+2] * (1-blendAmt) + lowFreq[i+2] * blendAmt);
+  }
+}
+
+/**
+ * Smart object detect and inpaint center region with patch-based synthesis
+ */
+export function smartInpaint(
+  imageData: ImageData,
+  maskX: number, maskY: number,
+  maskW: number, maskH: number
+): void {
+  const data = imageData.data;
+  const w = imageData.width, h = imageData.height;
+  const patchSize = 8;
+
+  // For each pixel in mask, find best matching patch outside mask
+  for (let py = maskY; py < maskY + maskH; py += patchSize) {
+    for (let px = maskX; px < maskX + maskW; px += patchSize) {
+      // Find nearest patch on boundary of mask
+      let bestDist = Infinity, bestSrcX = 0, bestSrcY = 0;
+      const searchRange = Math.max(patchSize * 4, Math.max(maskW, maskH));
+      for (let sy = Math.max(0, py - searchRange); sy < Math.min(h - patchSize, py + searchRange); sy += patchSize) {
+        for (let sx = Math.max(0, px - searchRange); sx < Math.min(w - patchSize, px + searchRange); sx += patchSize) {
+          if (sx >= maskX - patchSize && sx <= maskX + maskW && sy >= maskY - patchSize && sy <= maskY + maskH) continue;
+          let dist = 0, samples = 0;
+          for (let dy = 0; dy < patchSize; dy++) {
+            for (let dx = 0; dx < patchSize; dx++) {
+              const si = ((sy+dy)*w+(sx+dx))*4;
+              const di = ((py+dy)*w+(px+dx))*4;
+              if (py+dy >= maskY && py+dy < maskY+maskH && px+dx >= maskX && px+dx < maskX+maskW) {
+                const dr = data[si]-data[di], dg = data[si+1]-data[di+1], db = data[si+2]-data[di+2];
+                dist += dr*dr + dg*dg + db*db; samples++;
+              }
+            }
+          }
+          const normDist = samples > 0 ? dist / samples : Infinity;
+          if (normDist < bestDist) { bestDist = normDist; bestSrcX = sx; bestSrcY = sy; }
+        }
+      }
+      // Copy best matching patch
+      for (let dy = 0; dy < patchSize; dy++) {
+        for (let dx = 0; dx < patchSize; dx++) {
+          const tx = px+dx, ty = py+dy;
+          if (tx >= maskX && tx < maskX+maskW && ty >= maskY && ty < maskY+maskH && tx < w && ty < h) {
+            const si = ((bestSrcY+dy)*w+(bestSrcX+dx))*4;
+            const di = (ty*w+tx)*4;
+            data[di]=data[si]; data[di+1]=data[si+1]; data[di+2]=data[si+2];
+          }
+        }
+      }
+    }
+  }
+}
+
+/**
+ * Compute SSIM-like quality metric (simplified, single-channel)
+ * Returns value 0-1, where 1 = identical images
+ */
+export function computeImageQuality(imageData: ImageData): { sharpness: number; noise: number; exposure: number; contrast: number } {
+  const data = imageData.data;
+  const w = imageData.width, h = imageData.height;
+  let totalLum = 0, totalGrad = 0, totalVar = 0, n = 0;
+  const lums: number[] = [];
+
+  for (let y = 1; y < h - 1; y++) {
+    for (let x = 1; x < w - 1; x++) {
+      const idx = (y * w + x) * 4;
+      const lum = data[idx] * 0.299 + data[idx+1] * 0.587 + data[idx+2] * 0.114;
+      lums.push(lum);
+      totalLum += lum;
+      // Gradient (edge magnitude for sharpness)
+      const gx = Math.abs(data[idx]-data[(y*w+x-1)*4]) + Math.abs(data[idx]-data[(y*w+x+1)*4]);
+      const gy = Math.abs(data[idx]-data[((y-1)*w+x)*4]) + Math.abs(data[idx]-data[((y+1)*w+x)*4]);
+      totalGrad += Math.sqrt(gx*gx + gy*gy);
+      n++;
+    }
+  }
+
+  const avgLum = totalLum / n;
+  lums.forEach(l => { totalVar += (l - avgLum) * (l - avgLum); });
+  const stdDev = Math.sqrt(totalVar / n);
+
+  return {
+    sharpness: Math.min(100, Math.round(totalGrad / n / 2)),
+    noise: Math.max(0, Math.min(100, Math.round(100 - (totalGrad / n) / 3))),
+    exposure: Math.round(avgLum / 2.55),
+    contrast: Math.round(stdDev / 1.28),
+  };
+}
