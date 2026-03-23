@@ -12,6 +12,15 @@ export default function LandingPage() {
   function launchEditor() {
     navigate("/editor");
   }
+  function launchAppDesigner() {
+    navigate("/app-designer");
+  }
+  function launchWebDesigner() {
+    navigate("/web-designer");
+  }
+  function launchGraphicDesigner() {
+    navigate("/graphic-designer");
+  }
 
   useEffect(() => {
     const video = videoRef.current;
@@ -834,6 +843,61 @@ export default function LandingPage() {
         .step-title { font-size:17px; font-weight:800; margin-bottom:10px; letter-spacing:-0.3px; }
         .step-desc { font-size:13px; color:rgba(255,255,255,0.35); line-height:1.7; }
 
+        /* ═══════════════ TOOLS SUITE ═══════════════ */
+        .tools-section {
+          padding: 120px 24px; background: #000; position: relative;
+        }
+        .tools-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+          gap: 24px; max-width: 1200px; margin: 0 auto;
+        }
+        .tool-card {
+          background: rgba(255,255,255,0.02);
+          border: 1px solid rgba(255,255,255,0.08);
+          border-radius: 24px; padding: 40px 36px;
+          display: flex; flex-direction: column; gap: 16px;
+          cursor: pointer; transition: all 0.3s ease;
+          position: relative; overflow: hidden;
+        }
+        .tool-card::before {
+          content: ''; position: absolute; inset: 0; opacity: 0; transition: opacity 0.3s;
+          background: radial-gradient(ellipse 80% 80% at 30% 30%, rgba(139,92,246,0.08) 0%, transparent 70%);
+        }
+        .tool-card:hover { border-color: rgba(139,92,246,0.4); transform: translateY(-6px); box-shadow: 0 24px 64px rgba(0,0,0,0.8), 0 0 0 1px rgba(139,92,246,0.15); }
+        .tool-card:hover::before { opacity: 1; }
+        .tool-card-icon {
+          width: 64px; height: 64px; border-radius: 18px;
+          display: flex; align-items: center; justify-content: center;
+          font-size: 28px; margin-bottom: 4px;
+        }
+        .tool-card-title { font-family: 'Space Grotesk', sans-serif; font-size: 22px; font-weight: 800; letter-spacing: -0.5px; }
+        .tool-card-desc { font-size: 14px; color: rgba(255,255,255,0.4); line-height: 1.7; flex: 1; }
+        .tool-card-tags { display: flex; gap: 8px; flex-wrap: wrap; }
+        .tool-tag {
+          font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
+          padding: 4px 12px; border-radius: 100px;
+          background: rgba(139,92,246,0.12); border: 1px solid rgba(139,92,246,0.3);
+          color: #c4b5fd;
+        }
+        .tool-card-btn {
+          margin-top: 8px; padding: 14px 24px; border-radius: 12px; border: none;
+          font-size: 14px; font-weight: 700; cursor: pointer;
+          display: flex; align-items: center; gap: 8px; justify-content: center;
+          transition: all 0.25s ease; position: relative; overflow: hidden;
+        }
+        .tool-card-btn-primary {
+          background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+          color: white;
+          box-shadow: 0 4px 24px rgba(139,92,246,0.4), inset 0 1px 0 rgba(255,255,255,0.15);
+        }
+        .tool-card-btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 40px rgba(139,92,246,0.7); }
+        .tool-card-btn-secondary {
+          background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.8);
+          border: 1px solid rgba(255,255,255,0.12);
+        }
+        .tool-card-btn-secondary:hover { background: rgba(255,255,255,0.1); border-color: rgba(139,92,246,0.4); }
+
         /* ═══════════════ CTA ═══════════════ */
         .cta-section {
           padding:160px 24px; text-align:center; position:relative; overflow:hidden;
@@ -941,10 +1005,10 @@ export default function LandingPage() {
             <span className="nav-pill">PRO v4</span>
           </div>
           <div className="nav-links">
+            <a href="#tools">All Tools</a>
             <a href="#features">Features</a>
             <a href="#ai">AI Tools</a>
             <a href="#workflow">Workflow</a>
-            <a href="#preview">Preview</a>
           </div>
           <button onClick={launchEditor} className="btn-nav-cta">Launch Editor →</button>
         </nav>
@@ -1257,6 +1321,64 @@ export default function LandingPage() {
           </div>
         </section>
 
+        {/* TOOLS SUITE */}
+        <section className="tools-section" id="tools">
+          <div style={{textAlign:"center",marginBottom:"72px"}}>
+            <div className="section-eyebrow">Creative Suite</div>
+            <h2 className="section-h2">Choose Your <span style={{background:"linear-gradient(135deg,#a78bfa,#06b6d4,#10b981)",backgroundSize:"200%",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",animation:"gradientShift 5s ease infinite"}}>Creative Tool.</span></h2>
+            <p className="section-p">Four professional-grade tools, all browser-native. No installs, no subscriptions.</p>
+          </div>
+          <div className="tools-grid">
+            <div className="tool-card" onClick={launchEditor}>
+              <div className="tool-card-icon" style={{background:"rgba(139,92,246,0.15)"}}>📸</div>
+              <div className="tool-card-title">Photo &amp; Video Editor</div>
+              <p className="tool-card-desc">Pixel-level AI editing, 50+ panels, color grading, masking, layers, RAW processing, and cinematic effects — all in your browser.</p>
+              <div className="tool-card-tags">
+                <span className="tool-tag">AI</span>
+                <span className="tool-tag">8K</span>
+                <span className="tool-tag">RAW</span>
+                <span className="tool-tag">Video</span>
+              </div>
+              <button className="tool-card-btn tool-card-btn-primary">⚡ Launch Editor →</button>
+            </div>
+            <div className="tool-card" onClick={launchAppDesigner}>
+              <div className="tool-card-icon" style={{background:"rgba(236,72,153,0.15)"}}>📱</div>
+              <div className="tool-card-title">App UI Designer</div>
+              <p className="tool-card-desc">Design mobile app interfaces visually. Drag-and-drop components onto a live device frame — iOS and Android previews included.</p>
+              <div className="tool-card-tags">
+                <span className="tool-tag">Mobile</span>
+                <span className="tool-tag">Drag &amp; Drop</span>
+                <span className="tool-tag">iOS</span>
+                <span className="tool-tag">Android</span>
+              </div>
+              <button className="tool-card-btn tool-card-btn-secondary">📱 Open App Designer →</button>
+            </div>
+            <div className="tool-card" onClick={launchWebDesigner}>
+              <div className="tool-card-icon" style={{background:"rgba(6,182,212,0.15)"}}>🌐</div>
+              <div className="tool-card-title">Web UI Designer</div>
+              <p className="tool-card-desc">Build website layouts visually with live desktop, tablet, and mobile previews. Add sections, customize styles, and export instantly.</p>
+              <div className="tool-card-tags">
+                <span className="tool-tag">Responsive</span>
+                <span className="tool-tag">Sections</span>
+                <span className="tool-tag">Live Preview</span>
+              </div>
+              <button className="tool-card-btn tool-card-btn-secondary">🌐 Open Web Designer →</button>
+            </div>
+            <div className="tool-card" onClick={launchGraphicDesigner}>
+              <div className="tool-card-icon" style={{background:"rgba(245,158,11,0.15)"}}>🎨</div>
+              <div className="tool-card-title">Graphic Designer</div>
+              <p className="tool-card-desc">Create social media posts, logos, banners, posters, and more. Templates for every platform, full typography control, and sticker packs.</p>
+              <div className="tool-card-tags">
+                <span className="tool-tag">Templates</span>
+                <span className="tool-tag">Social</span>
+                <span className="tool-tag">Print</span>
+                <span className="tool-tag">Export</span>
+              </div>
+              <button className="tool-card-btn tool-card-btn-secondary">🎨 Open Graphic Designer →</button>
+            </div>
+          </div>
+        </section>
+
         {/* CTA */}
         <section className="cta-section">
           <div className="cta-orb" />
@@ -1286,9 +1408,12 @@ export default function LandingPage() {
             <span>ProEditor v4.0 · Browser-Native AI Photo &amp; Video Editor</span>
           </div>
           <div className="footer-links">
+            <a href="#tools">All Tools</a>
             <a href="#features">Features</a>
             <a href="#ai">AI Tools</a>
-            <a href="#workflow">Workflow</a>
+            <a onClick={launchAppDesigner} style={{cursor:"pointer"}}>App Designer</a>
+            <a onClick={launchWebDesigner} style={{cursor:"pointer"}}>Web Designer</a>
+            <a onClick={launchGraphicDesigner} style={{cursor:"pointer"}}>Graphic Designer</a>
           </div>
           <span>© 2026 ProEditor. All rights reserved.</span>
         </footer>
