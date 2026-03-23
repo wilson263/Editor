@@ -814,13 +814,9 @@ for (let i = 0; i < 20; i++) {
 
 
 // ─── DYNAMIC EDITOR URL ───
-var FALLBACK_EDITOR_URL = 'https://ae8c78a7-9f5d-46c0-a078-c9205069dbb7-00-1xujpt8fk7xw5.picard.replit.dev/';
+var EDITOR_URL = 'https://wilson263.github.io/Editor/';
 function getEditorUrl() {
-  var host = window.location.hostname;
-  if (host.indexOf('replit') !== -1 || host === 'localhost' || host === '127.0.0.1') {
-    return window.location.origin + '/';
-  }
-  return FALLBACK_EDITOR_URL;
+  return EDITOR_URL;
 }
 function openEditor(e) {
   e.preventDefault();
