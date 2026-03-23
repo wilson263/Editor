@@ -919,18 +919,6 @@ export default function LandingPage() {
           onError={() => setVideoError(true)}
         />
 
-        {/* Dark vignette overlay */}
-        <div className="intro-overlay" />
-
-        {/* Brand overlay on top of video */}
-        <div className="intro-brand-overlay">
-          <div className="intro-logo-wrap">
-            <span className="intro-logo-sym">✦</span>
-          </div>
-          <div className="intro-name">ProEditor</div>
-          <div className="intro-sub-text">Professional · AI-Powered · Beast Mode</div>
-        </div>
-
         {/* Skip button */}
         <button
           className="intro-skip-btn"
