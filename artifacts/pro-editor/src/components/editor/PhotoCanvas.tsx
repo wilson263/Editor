@@ -5,7 +5,36 @@ import {
   createLiquifyMesh, applyLiquifyStroke, applyLiquifyMesh, resetMesh,
   type LiquifyMesh
 } from '@/lib/liquify';
-import { ZoomIn, ZoomOut, Maximize2, Pipette, X } from 'lucide-react';
+import {
+  stampBrush,
+  stampEraser,
+  stampDodge,
+  stampBurn,
+  stampBlur,
+  stampSharpen,
+  stampSmudge,
+  stampSponge,
+  stampHeal,
+  stampClone,
+  stampHighlightRecovery,
+  simulatePressureFromSpeed,
+  interpolateStampPositions,
+  createStrokeState,
+  initSmudgeState,
+  type StrokeState,
+  type SmudgeState,
+  type DodgeBurnRange,
+} from '@/lib/brushEngine';
+import { ZoomIn, ZoomOut, Maximize2, Pipette, Target } from 'lucide-react';
+
+// ─── Tool configuration ────────────────────────────────────────────────────────
+
+const PAINT_TOOLS = new Set([
+  'brush', 'eraser', 'dodge', 'burn', 'smudge',
+  'blur-tool', 'sharpen-tool', 'heal', 'clone', 'sponge',
+]);
+
+// ─── Component ────────────────────────────────────────────────────────────────
 
 export default function PhotoCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -15,33 +44,50 @@ export default function PhotoCanvas() {
   const [dragOver, setDragOver] = useState(false);
   const [compareSlider, setCompareSlider] = useState(50);
   const [isDraggingSlider, setIsDraggingSlider] = useState(false);
-  const lastPos = useRef<{ x: number; y: number } | null>(null);
   const renderTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Crop state
   const [isCropDragging, setIsCropDragging] = useState(false);
-  const [cropStart, setCropStart] = useState<{x:number;y:number}|null>(null);
-  const [cropRect, setCropRect] = useState<{x:number;y:number;w:number;h:number}|null>(null);
-  const cropCanvasRef = useRef<HTMLCanvasElement>(null);
+  const [cropStart, setCropStart] = useState<{ x: number; y: number } | null>(null);
+  const [cropRect, setCropRect] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
 
   // Eyedropper state
-  const [eyedropperPreview, setEyedropperPreview] = useState<{x:number;y:number;color:string}|null>(null);
+  const [eyedropperPreview, setEyedropperPreview] = useState<{ x: number; y: number; color: string } | null>(null);
+
+  // Clone source state (alt-click to set, shown as crosshair overlay)
+  const cloneSourceRef = useRef<{ x: number; y: number } | null>(null);
+  const [cloneSourceDisplay, setCloneSourceDisplay] = useState<{ x: number; y: number } | null>(null);
+  const [isSettingCloneSource, setIsSettingCloneSource] = useState(false);
+
+  // Stroke engine state
+  const strokeStateRef = useRef<StrokeState>(createStrokeState());
+  const smudgeStateRef = useRef<SmudgeState>(initSmudgeState());
+  const lastTimeRef = useRef<number>(performance.now());
+  const seedRef = useRef<number>(0);
 
   // Liquify state
   const liquifyMeshRef = useRef<LiquifyMesh | null>(null);
   const liquifyBaseImageRef = useRef<ImageData | null>(null);
-  const liquifyActiveToolRef = useRef<string>("push");
+  const liquifyActiveToolRef = useRef<string>('push');
   const liquifyPressureRef = useRef<number>(50);
   const [isLiquifyActive, setIsLiquifyActive] = useState(false);
-  const lastLiquifyPos = useRef<{x:number;y:number}|null>(null);
+  const lastLiquifyPos = useRef<{ x: number; y: number } | null>(null);
 
   const {
     sourceImage, adjustments, selectedFilter, zoom, setZoom,
-    activeTool, layers, brushSize, brushColor, brushOpacity, brushHardness,
+    activeTool, layers,
+    brushSize, brushColor, brushOpacity, brushHardness,
+    brushFlow, brushSpacing, brushAngle, brushRoundness,
+    brushBlendMode, brushPressure,
     showGrid, showRulers, showBeforeAfter, filterOpacity, setSourceImage,
-    addLayer, curvePoints, panOffset, setSampleColor, setBrushColor,
-    setActivePanel, setActiveTool, brushFlow,
+    curvePoints, setSampleColor, setBrushColor,
+    setActivePanel, setActiveTool,
   } = useEditorStore();
+
+  // Dodge/burn tonal range (default midtones) — can be extended via panel
+  const dodgeBurnRange = useRef<DodgeBurnRange>('midtones');
+
+  // ─── Canvas Redraw ───────────────────────────────────────────────────────────
 
   const redraw = useCallback(() => {
     const canvas = canvasRef.current;
@@ -105,11 +151,30 @@ export default function PhotoCanvas() {
 
   useEffect(() => { redraw(); }, [redraw]);
 
-  // Liquify event listeners
+  // ─── Liquify tool/pressure events from panel ──────────────────────────────────
+
+  useEffect(() => {
+    const handleLiquifyTool = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (detail?.tool) liquifyActiveToolRef.current = detail.tool;
+    };
+    const handleLiquifyPressure = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (typeof detail?.pressure === 'number') liquifyPressureRef.current = detail.pressure;
+    };
+    window.addEventListener('liquify-tool', handleLiquifyTool);
+    window.addEventListener('liquify-pressure', handleLiquifyPressure);
+    return () => {
+      window.removeEventListener('liquify-tool', handleLiquifyTool);
+      window.removeEventListener('liquify-pressure', handleLiquifyPressure);
+    };
+  }, []);
+
+  // ─── Liquify event listeners ─────────────────────────────────────────────────
+
   useEffect(() => {
     const handleLiquifyReset = () => {
       if (liquifyMeshRef.current) resetMesh(liquifyMeshRef.current);
-      // Restore base image
       const canvas = canvasRef.current;
       const ctx = canvas?.getContext('2d', { willReadFrequently: true });
       if (canvas && ctx && liquifyBaseImageRef.current) {
@@ -117,7 +182,6 @@ export default function PhotoCanvas() {
       }
     };
     const handleLiquifyApply = () => {
-      // Commit the warp — update sourceImage
       const canvas = canvasRef.current;
       if (!canvas) return;
       setSourceImage(canvas.toDataURL('image/png'));
@@ -142,10 +206,8 @@ export default function PhotoCanvas() {
     };
   }, [setSourceImage]);
 
-  // Update liquify tool/pressure from panel custom events
   useEffect(() => {
-    const isLiquify = activeTool === 'liquify';
-    if (isLiquify) {
+    if (activeTool === 'liquify') {
       const canvas = canvasRef.current;
       const ctx = canvas?.getContext('2d', { willReadFrequently: true });
       if (canvas && ctx && !liquifyMeshRef.current) {
@@ -155,6 +217,8 @@ export default function PhotoCanvas() {
       }
     }
   }, [activeTool]);
+
+  // ─── Coordinate helpers ──────────────────────────────────────────────────────
 
   function getCanvasPos(e: React.MouseEvent<HTMLCanvasElement | HTMLDivElement>) {
     const canvas = canvasRef.current;
@@ -183,8 +247,118 @@ export default function PhotoCanvas() {
     return '#' + [r, g, b].map((v) => v.toString(16).padStart(2, '0')).join('');
   }
 
+  // ─── Brush stamp dispatcher ───────────────────────────────────────────────────
+
+  function applyBrushStamp(
+    ctx: CanvasRenderingContext2D,
+    x: number, y: number,
+    pressure: number
+  ) {
+    const size = brushPressure ? brushSize * pressure : brushSize;
+    const hardness = brushHardness ?? 80;
+    const opacity = brushOpacity;
+    const flow = brushFlow ?? 100;
+    const effectivePressure = brushPressure ? pressure : 1.0;
+    const seed = seedRef.current++;
+
+    // Map blend mode from store to canvas blend mode
+    const blendModeMap: Record<string, GlobalCompositeOperation> = {
+      normal: 'source-over',
+      multiply: 'multiply',
+      screen: 'screen',
+      overlay: 'overlay',
+      darken: 'darken',
+      lighten: 'lighten',
+      'color-dodge': 'color-dodge',
+      'color-burn': 'color-burn',
+      'hard-light': 'hard-light',
+      'soft-light': 'soft-light',
+      difference: 'difference',
+      exclusion: 'exclusion',
+      hue: 'hue',
+      saturation: 'saturation',
+      color: 'color',
+      luminosity: 'luminosity',
+    };
+    const blendMode: GlobalCompositeOperation = blendModeMap[brushBlendMode] ?? 'source-over';
+
+    switch (activeTool) {
+      case 'brush':
+        stampBrush(ctx, x, y, {
+          size,
+          hardness,
+          opacity: opacity * (flow / 100),
+          color: brushColor,
+          blendMode,
+          angle: brushAngle ?? 0,
+          roundness: brushRoundness ?? 100,
+        }, effectivePressure, seed);
+        break;
+
+      case 'eraser':
+        stampEraser(ctx, x, y, size, hardness, opacity, pressure);
+        break;
+
+      case 'dodge':
+        stampDodge(ctx, x, y, size, hardness, opacity, dodgeBurnRange.current, pressure);
+        break;
+
+      case 'burn':
+        stampBurn(ctx, x, y, size, hardness, opacity, dodgeBurnRange.current, pressure);
+        break;
+
+      case 'blur-tool':
+        stampBlur(ctx, x, y, size, hardness, opacity, pressure);
+        break;
+
+      case 'sharpen-tool':
+        stampSharpen(ctx, x, y, size, hardness, opacity, pressure);
+        break;
+
+      case 'smudge': {
+        const newState = stampSmudge(ctx, x, y, size, hardness, opacity, smudgeStateRef.current, pressure);
+        smudgeStateRef.current = newState;
+        break;
+      }
+
+      case 'sponge':
+        stampSponge(ctx, x, y, size, hardness, opacity, false, pressure);
+        break;
+
+      case 'heal': {
+        const src = cloneSourceRef.current;
+        if (src) {
+          stampHeal(ctx, x, y, src.x, src.y, size, hardness, opacity, pressure);
+        }
+        break;
+      }
+
+      case 'clone': {
+        const src = cloneSourceRef.current;
+        if (src) {
+          stampClone(ctx, x, y, src.x, src.y, size, hardness, opacity, pressure);
+        }
+        break;
+      }
+
+      default:
+        break;
+    }
+  }
+
+  // ─── Mouse Down ──────────────────────────────────────────────────────────────
+
   function handleMouseDown(e: React.MouseEvent<HTMLCanvasElement>) {
-    const paintTools = ['brush', 'eraser', 'dodge', 'burn', 'smudge', 'blur-tool', 'sharpen-tool', 'heal', 'clone'];
+    // Alt+click sets clone source
+    if ((activeTool === 'clone' || activeTool === 'heal') && e.altKey) {
+      const pos = getCanvasPos(e);
+      cloneSourceRef.current = pos;
+      const dpos = getDisplayPos(e);
+      setCloneSourceDisplay(dpos);
+      setIsSettingCloneSource(true);
+      return;
+    }
+
     if (activeTool === 'eyedropper') {
       const color = samplePixelColor(e);
       if (color) {
@@ -195,6 +369,7 @@ export default function PhotoCanvas() {
       }
       return;
     }
+
     if (activeTool === 'crop') {
       const pos = getCanvasPos(e);
       setCropStart(pos);
@@ -202,12 +377,13 @@ export default function PhotoCanvas() {
       setIsCropDragging(true);
       return;
     }
+
     if (activeTool === 'liquify') {
       lastLiquifyPos.current = getCanvasPos(e);
       return;
     }
+
     if (activeTool === 'magic-wand') {
-      // Real flood-fill magic wand selection visualization
       const canvas = canvasRef.current;
       const ctx = canvas?.getContext('2d', { willReadFrequently: true });
       if (!canvas || !ctx) return;
@@ -217,9 +393,8 @@ export default function PhotoCanvas() {
       const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
       const data = imgData.data;
       const idx = (py * canvas.width + px) * 4;
-      const seedR = data[idx], seedG = data[idx+1], seedB = data[idx+2];
+      const seedR = data[idx], seedG = data[idx + 1], seedB = data[idx + 2];
       const tolerance = 30;
-      // BFS flood fill
       const visited = new Uint8Array(canvas.width * canvas.height);
       const stack = [px, py];
       while (stack.length > 0) {
@@ -231,21 +406,44 @@ export default function PhotoCanvas() {
         visited[si] = 1;
         const di = si * 4;
         const dr = Math.abs(data[di] - seedR);
-        const dg = Math.abs(data[di+1] - seedG);
-        const db = Math.abs(data[di+2] - seedB);
+        const dg = Math.abs(data[di + 1] - seedG);
+        const db = Math.abs(data[di + 2] - seedB);
         if (dr + dg + db > tolerance * 3) continue;
-        // Paint selection overlay
         data[di] = Math.min(255, data[di] + 40);
-        data[di+2] = Math.min(255, data[di+2] + 80);
-        stack.push(cx2+1, cy2, cx2-1, cy2, cx2, cy2+1, cx2, cy2-1);
+        data[di + 2] = Math.min(255, data[di + 2] + 80);
+        stack.push(cx2 + 1, cy2, cx2 - 1, cy2, cx2, cy2 + 1, cx2, cy2 - 1);
       }
       ctx.putImageData(imgData, 0, 0);
       return;
     }
-    if (!paintTools.includes(activeTool)) return;
+
+    if (!PAINT_TOOLS.has(activeTool)) return;
+
     setIsPainting(true);
-    lastPos.current = getCanvasPos(e);
+
+    const pos = getCanvasPos(e);
+    const canvas = canvasRef.current;
+    const ctx = canvas?.getContext('2d', { willReadFrequently: true });
+    if (!canvas || !ctx) return;
+
+    // Reset stroke state for new stroke
+    strokeStateRef.current = {
+      ...createStrokeState(),
+      lastX: pos.x,
+      lastY: pos.y,
+      lastTime: performance.now(),
+    };
+    smudgeStateRef.current = initSmudgeState();
+    lastTimeRef.current = performance.now();
+
+    // First stamp at click point
+    applyBrushStamp(ctx, pos.x, pos.y, 1.0);
+    strokeStateRef.current.lastX = pos.x;
+    strokeStateRef.current.lastY = pos.y;
+    strokeStateRef.current.isFirstPoint = false;
   }
+
+  // ─── Mouse Move ───────────────────────────────────────────────────────────────
 
   function handleMouseMove(e: React.MouseEvent<HTMLCanvasElement>) {
     if (activeTool === 'eyedropper') {
@@ -266,8 +464,12 @@ export default function PhotoCanvas() {
       return;
     }
 
-    // Liquify warp on mouse drag
-    if (activeTool === 'liquify' && lastLiquifyPos.current && liquifyMeshRef.current && liquifyBaseImageRef.current) {
+    if (
+      activeTool === 'liquify' &&
+      lastLiquifyPos.current &&
+      liquifyMeshRef.current &&
+      liquifyBaseImageRef.current
+    ) {
       const canvas = canvasRef.current;
       const ctx = canvas?.getContext('2d', { willReadFrequently: true });
       if (!canvas || !ctx) return;
@@ -284,7 +486,6 @@ export default function PhotoCanvas() {
         liquifyActiveToolRef.current as any
       );
 
-      // Apply mesh to base image
       const srcData = new ImageData(
         new Uint8ClampedArray(liquifyBaseImageRef.current.data),
         liquifyBaseImageRef.current.width,
@@ -299,71 +500,55 @@ export default function PhotoCanvas() {
     }
 
     if (!isPainting) return;
+
     const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+    const ctx = canvas?.getContext('2d', { willReadFrequently: true });
+    if (!canvas || !ctx) return;
+
     const pos = getCanvasPos(e);
-    const last = lastPos.current || pos;
+    const state = strokeStateRef.current;
+    const now = performance.now();
+    const dt = Math.max(1, now - lastTimeRef.current);
+    lastTimeRef.current = now;
 
-    ctx.beginPath();
-    ctx.moveTo(last.x, last.y);
-    ctx.lineTo(pos.x, pos.y);
-    ctx.lineWidth = brushSize;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
+    const dx = pos.x - state.lastX;
+    const dy = pos.y - state.lastY;
 
-    if (activeTool === 'eraser') {
-      ctx.globalCompositeOperation = 'destination-out';
-      ctx.strokeStyle = 'rgba(0,0,0,1)';
-      ctx.globalAlpha = (brushOpacity / 100);
-    } else if (activeTool === 'dodge') {
-      ctx.globalCompositeOperation = 'screen';
-      ctx.strokeStyle = `rgba(255,255,200,${(brushOpacity / 100) * 0.25})`;
-    } else if (activeTool === 'burn') {
-      ctx.globalCompositeOperation = 'multiply';
-      ctx.strokeStyle = `rgba(0,0,0,${(brushOpacity / 100) * 0.25})`;
-    } else if (activeTool === 'smudge') {
-      // Smudge: sample from last position and paint with low opacity
-      const sampledData = ctx.getImageData(last.x - brushSize/2, last.y - brushSize/2, brushSize, brushSize);
-      ctx.putImageData(sampledData, pos.x - brushSize/2, pos.y - brushSize/2);
-      lastPos.current = pos;
-      return;
-    } else if (activeTool === 'blur-tool') {
-      // Blur brush: draw semi-transparent overlay using backdrop filter simulation
-      ctx.filter = 'blur(2px)';
-      const region = ctx.getImageData(pos.x - brushSize/2, pos.y - brushSize/2, brushSize, brushSize);
-      ctx.putImageData(region, pos.x - brushSize/2, pos.y - brushSize/2);
-      ctx.filter = 'none';
-      lastPos.current = pos;
-      return;
-    } else if (activeTool === 'sharpen-tool') {
-      ctx.globalCompositeOperation = 'source-over';
-      ctx.strokeStyle = brushColor;
-      ctx.globalAlpha = (brushOpacity / 100) * 0.3;
-    } else if (activeTool === 'heal' || activeTool === 'clone') {
-      // Healing/clone: copy a nearby region
-      ctx.globalCompositeOperation = 'source-over';
-      const offset = 30;
-      const region = ctx.getImageData(pos.x - brushSize/2 + offset, pos.y - brushSize/2 + offset, brushSize, brushSize);
-      ctx.globalAlpha = (brushOpacity / 100) * 0.8;
-      ctx.putImageData(region, pos.x - brushSize/2, pos.y - brushSize/2);
-      ctx.globalAlpha = 1;
-      lastPos.current = pos;
-      return;
-    } else {
-      ctx.globalCompositeOperation = 'source-over';
-      ctx.strokeStyle = brushColor;
-      ctx.globalAlpha = (brushOpacity / 100) * (brushFlow / 100);
+    // Simulate pressure from mouse speed
+    const pressure = simulatePressureFromSpeed(dx, dy, dt);
+
+    // Spacing: professional brushes stamp at regular intervals along the path
+    const spacingPct = brushSpacing ?? 25;
+    const spacing = Math.max(1, brushSize * (spacingPct / 100));
+
+    const { points, newRemainder } = interpolateStampPositions(
+      state.lastX, state.lastY,
+      pos.x, pos.y,
+      spacing,
+      state.remainder
+    );
+
+    for (const pt of points) {
+      applyBrushStamp(ctx, pt.x, pt.y, pressure);
     }
-    ctx.stroke();
-    ctx.globalCompositeOperation = 'source-over';
-    ctx.globalAlpha = 1;
-    ctx.filter = 'none';
-    lastPos.current = pos;
+
+    strokeStateRef.current = {
+      ...state,
+      lastX: pos.x,
+      lastY: pos.y,
+      lastTime: now,
+      remainder: newRemainder,
+      isFirstPoint: false,
+    };
   }
 
+  // ─── Mouse Up ────────────────────────────────────────────────────────────────
+
   function handleMouseUp(e: React.MouseEvent<HTMLCanvasElement>) {
+    if (isSettingCloneSource) {
+      setIsSettingCloneSource(false);
+      return;
+    }
     if (activeTool === 'crop' && isCropDragging && cropRect && cropRect.w > 20 && cropRect.h > 20) {
       setIsCropDragging(false);
       applyCrop();
@@ -375,8 +560,10 @@ export default function PhotoCanvas() {
     }
     setIsCropDragging(false);
     setIsPainting(false);
-    lastPos.current = null;
+    smudgeStateRef.current = initSmudgeState();
   }
+
+  // ─── Crop ────────────────────────────────────────────────────────────────────
 
   function applyCrop() {
     if (!cropRect) return;
@@ -392,16 +579,19 @@ export default function PhotoCanvas() {
     const tmpCtx = tmpCanvas.getContext('2d');
     if (!tmpCtx) return;
     tmpCtx.putImageData(imageData, 0, 0);
-    const dataUrl = tmpCanvas.toDataURL('image/png');
-    setSourceImage(dataUrl);
+    setSourceImage(tmpCanvas.toDataURL('image/png'));
     setCropRect(null);
   }
 
+  // ─── Mouse Leave ─────────────────────────────────────────────────────────────
+
   function handleMouseLeave(e: React.MouseEvent<HTMLCanvasElement>) {
     setIsPainting(false);
-    lastPos.current = null;
+    smudgeStateRef.current = initSmudgeState();
     setEyedropperPreview(null);
   }
+
+  // ─── Drop / Wheel ─────────────────────────────────────────────────────────────
 
   function handleDrop(e: React.DragEvent) {
     e.preventDefault();
@@ -421,18 +611,26 @@ export default function PhotoCanvas() {
     }
   }
 
+  // ─── Cursor ───────────────────────────────────────────────────────────────────
+
   const getCursor = () => {
+    if ((activeTool === 'clone' || activeTool === 'heal') && !cloneSourceRef.current) {
+      return 'cell'; // hint to alt-click
+    }
     switch (activeTool) {
       case 'brush': case 'eraser': case 'dodge': case 'burn': case 'clone':
-      case 'heal': case 'smudge': case 'blur-tool': case 'sharpen-tool': return 'crosshair';
+      case 'heal': case 'smudge': case 'blur-tool': case 'sharpen-tool':
+      case 'sponge': return 'crosshair';
       case 'hand': return 'grab';
-      case 'eyedropper': return 'none'; // We show custom preview
+      case 'eyedropper': return 'none';
       case 'lasso': case 'crop': return 'crosshair';
       default: return 'default';
     }
   };
 
   const displayScale = zoom / 100;
+
+  // ─── Render ───────────────────────────────────────────────────────────────────
 
   return (
     <div
@@ -522,7 +720,11 @@ export default function PhotoCanvas() {
                   <img
                     src={sourceImage}
                     className="absolute top-0 left-0 h-full max-w-none"
-                    style={{ width: (canvasRef.current?.getBoundingClientRect().width || 0) + 'px', objectFit: 'cover', objectPosition: 'left' }}
+                    style={{
+                      width: (canvasRef.current?.getBoundingClientRect().width || 0) + 'px',
+                      objectFit: 'cover',
+                      objectPosition: 'left',
+                    }}
                     alt="Before"
                   />
                 </div>
@@ -558,6 +760,23 @@ export default function PhotoCanvas() {
                   onMouseLeave={handleMouseLeave}
                 />
 
+                {/* Clone / heal source indicator */}
+                {(activeTool === 'clone' || activeTool === 'heal') && cloneSourceDisplay && (
+                  <div
+                    className="absolute pointer-events-none z-40"
+                    style={{ left: cloneSourceDisplay.x, top: cloneSourceDisplay.y, transform: 'translate(-50%,-50%)' }}
+                  >
+                    <Target size={20} className="text-violet-400 drop-shadow-lg" />
+                  </div>
+                )}
+
+                {/* Clone / heal tip overlay (when no source set) */}
+                {(activeTool === 'clone' || activeTool === 'heal') && !cloneSourceRef.current && (
+                  <div className="absolute top-2 left-1/2 -translate-x-1/2 px-3 py-1.5 bg-black/75 border border-violet-700/40 rounded-lg text-[11px] text-violet-300 shadow-xl pointer-events-none">
+                    Alt+click to set clone source, then paint to copy
+                  </div>
+                )}
+
                 {/* Crop overlay */}
                 {activeTool === 'crop' && cropRect && (
                   <div
@@ -569,19 +788,20 @@ export default function PhotoCanvas() {
                       height: `${(cropRect.h / (canvasRef.current?.height || 1)) * 100}%`,
                     }}
                   >
-                    {/* Rule-of-thirds grid */}
                     <div className="absolute inset-0">
                       <div className="absolute top-1/3 left-0 right-0 border-t border-white/20" />
                       <div className="absolute top-2/3 left-0 right-0 border-t border-white/20" />
                       <div className="absolute top-0 bottom-0 left-1/3 border-l border-white/20" />
                       <div className="absolute top-0 bottom-0 left-2/3 border-l border-white/20" />
                     </div>
-                    {/* Corner handles */}
-                    {[['top-0 left-0', '-translate-x-1/2 -translate-y-1/2'], ['top-0 right-0', 'translate-x-1/2 -translate-y-1/2'],
-                      ['bottom-0 left-0', '-translate-x-1/2 translate-y-1/2'], ['bottom-0 right-0', 'translate-x-1/2 translate-y-1/2']].map(([pos, tr]) => (
+                    {[
+                      ['top-0 left-0', '-translate-x-1/2 -translate-y-1/2'],
+                      ['top-0 right-0', 'translate-x-1/2 -translate-y-1/2'],
+                      ['bottom-0 left-0', '-translate-x-1/2 translate-y-1/2'],
+                      ['bottom-0 right-0', 'translate-x-1/2 translate-y-1/2'],
+                    ].map(([pos, tr]) => (
                       <div key={pos} className={`absolute ${pos} w-3 h-3 bg-white rounded-full border-2 border-violet-500 transform ${tr}`} />
                     ))}
-                    {/* Darken outside */}
                     <div className="absolute inset-0 ring-[2000px] ring-black/50 ring-offset-0" />
                     <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 px-2 py-1 bg-black/80 rounded text-[10px] text-white whitespace-nowrap">
                       {Math.round(cropRect.w)} × {Math.round(cropRect.h)} · Release to crop
@@ -593,16 +813,10 @@ export default function PhotoCanvas() {
                 {activeTool === 'eyedropper' && eyedropperPreview && (
                   <div
                     className="absolute pointer-events-none z-50"
-                    style={{
-                      left: eyedropperPreview.x + 16,
-                      top: eyedropperPreview.y - 40,
-                    }}
+                    style={{ left: eyedropperPreview.x + 16, top: eyedropperPreview.y - 40 }}
                   >
                     <div className="flex items-center gap-2 bg-[hsl(222_18%_10%)] border border-[hsl(220_15%_22%)] rounded-lg px-2 py-1.5 shadow-xl">
-                      <div
-                        className="w-5 h-5 rounded border border-[hsl(220_15%_25%)]"
-                        style={{ background: eyedropperPreview.color }}
-                      />
+                      <div className="w-5 h-5 rounded border border-[hsl(220_15%_25%)]" style={{ background: eyedropperPreview.color }} />
                       <span className="text-[11px] text-white font-mono">{eyedropperPreview.color.toUpperCase()}</span>
                       <Pipette size={10} className="text-gray-500" />
                     </div>
@@ -664,10 +878,15 @@ export default function PhotoCanvas() {
               <p className="text-gray-500 text-sm max-w-xs">Upload a photo or drag & drop an image anywhere</p>
             </div>
             <div className="flex flex-wrap gap-1.5 justify-center max-w-sm">
-              {['Tone Curves','HSL Mixing','Split Toning','Clarity & Dehaze','Real Pixel Processing',
-                'Film Grain','Text Layers','Before/After','48 Filters','8K Export',
-                'Portrait AI','Collage Maker','Sticker Library','Background Remover'].map((feat) => (
-                <span key={feat} className="px-2 py-0.5 bg-violet-900/20 border border-violet-800/20 rounded text-[10px] text-violet-400">{feat}</span>
+              {[
+                'Tone Curves', 'HSL Mixing', 'Split Toning', 'Clarity & Dehaze',
+                'Real Pixel Processing', 'Film Grain', 'Text Layers', 'Before/After',
+                '48 Filters', '8K Export', 'Portrait AI', 'Collage Maker',
+                'Sticker Library', 'Background Remover',
+              ].map((feat) => (
+                <span key={feat} className="px-2 py-0.5 bg-violet-900/20 border border-violet-800/20 rounded text-[10px] text-violet-400">
+                  {feat}
+                </span>
               ))}
             </div>
           </div>
@@ -676,11 +895,19 @@ export default function PhotoCanvas() {
 
       {/* Zoom controls */}
       <div className="absolute bottom-4 right-4 flex items-center gap-1 bg-[hsl(222_18%_10%)] border border-[hsl(220_15%_18%)] rounded-lg px-2 py-1 shadow-xl backdrop-blur-sm">
-        <button onClick={() => setZoom(Math.max(10, zoom - 10))} className="p-1 text-gray-500 hover:text-white transition-all"><ZoomOut size={13} /></button>
-        <button onClick={() => setZoom(100)} className="px-2 text-[11px] text-gray-300 hover:text-white font-mono transition-all min-w-[42px] text-center">{zoom}%</button>
-        <button onClick={() => setZoom(Math.min(2000, zoom + 10))} className="p-1 text-gray-500 hover:text-white transition-all"><ZoomIn size={13} /></button>
+        <button onClick={() => setZoom(Math.max(10, zoom - 10))} className="p-1 text-gray-500 hover:text-white transition-all">
+          <ZoomOut size={13} />
+        </button>
+        <button onClick={() => setZoom(100)} className="px-2 text-[11px] text-gray-300 hover:text-white font-mono transition-all min-w-[42px] text-center">
+          {zoom}%
+        </button>
+        <button onClick={() => setZoom(Math.min(2000, zoom + 10))} className="p-1 text-gray-500 hover:text-white transition-all">
+          <ZoomIn size={13} />
+        </button>
         <div className="w-px h-4 bg-[hsl(220_15%_18%)] mx-0.5" />
-        <button onClick={() => setZoom(100)} className="p-1 text-gray-500 hover:text-white transition-all" title="Reset Zoom"><Maximize2 size={13} /></button>
+        <button onClick={() => setZoom(100)} className="p-1 text-gray-500 hover:text-white transition-all" title="Reset Zoom">
+          <Maximize2 size={13} />
+        </button>
       </div>
 
       {/* Info overlay */}
